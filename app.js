@@ -1,6 +1,6 @@
 import { APP_CONFIG } from './running-score-config.js?v=11';
 import { fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=11';
-import { fetchAirQuality } from './air-quality.js?v=11';
+import { fetchAirQuality } from './air-quality.js?v=12';
 import { getStored, setStored, getCache, setCache } from './storage.js?v=11';
 import { currentConditions, dailyScore, findBestRunningTimes, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=11';
 import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=11';

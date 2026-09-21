@@ -11,7 +11,7 @@ export async function fetchWeather({ latitude, longitude }, signal) {
 }
 
 function kakaoServices() {
-  if (!window.kakao?.maps?.services) throw new Error('카카오 지도 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  if (!window.kakao?.maps?.services) throw new Error('카카오 지도 서비스를 불러오지 못했습니다. Kakao Developers의 카카오맵 사용 설정과 웹 도메인을 확인해 주세요.');
   return window.kakao.maps.services;
 }
 
