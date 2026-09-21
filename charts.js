@@ -13,23 +13,28 @@ function weatherLabel(code) {
 
 const number = (value, digits=1) => Number.isFinite(value) ? value.toFixed(digits) : '--';
 
-export function renderHourlyChart(container, rows, onSelect) {
+export function renderHourlyChart(container, rows, onSelect, { compact=false }={}) {
   container._chartCleanup?.();
   if (!rows.length) { container.innerHTML='<p class="muted">표시할 시간대 데이터가 없습니다.</p>'; return; }
-  const w=960,h=236,pad={l:38,r:18,t:25,b:38};
-  const x=i=>pad.l+(i/(rows.length-1||1))*(w-pad.l-pad.r);
+  const h=236,pad={l:38,r:18,t:25,b:38};
+  const availableWidth=Math.max(280,container.clientWidth);
+  const minimumPlotWidth=compact?(rows.length<=5?0:Math.max(0,rows.length-1)*68):904;
+  const w=Math.ceil(Math.max(availableWidth,pad.l+pad.r+minimumPlotWidth));
+  const plotWidth=w-pad.l-pad.r;
+  const x=i=>rows.length===1?pad.l+plotWidth/2:pad.l+(i/(rows.length-1))*plotWidth;
   const y=s=>pad.t+(100-s)/100*(h-pad.t-pad.b);
+  const labelStep=rows.length<=6?1:2;
   const points=rows.map((r,i)=>`${x(i)},${y(r.score)}`).join(' ');
   const area=`${x(0)},${h-pad.b} ${points} ${x(rows.length-1)},${h-pad.b}`;
-  container.innerHTML=`<div class="chart-canvas"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+  container.innerHTML=`<div class="chart-canvas" style="width:${w}px"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="scoreAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#42a5f5" stop-opacity=".28"></stop><stop offset="100%" stop-color="#42a5f5" stop-opacity=".035"></stop></linearGradient></defs>
     ${[40,60,80,100].map(v=>`<line class="grid-line" x1="${pad.l}" y1="${y(v)}" x2="${w-pad.r}" y2="${y(v)}"></line><text class="axis-label" x="3" y="${y(v)+4}">${v}</text>`).join('')}
-    ${rows.filter((_,i)=>i%2===0).map((r,i)=>`<line class="hour-guide" x1="${x(i*2)}" y1="${pad.t}" x2="${x(i*2)}" y2="${h-pad.b}"></line>`).join('')}
+    ${rows.map((r,i)=>({r,i})).filter(({i})=>i%labelStep===0).map(({i})=>`<line class="hour-guide" x1="${x(i)}" y1="${pad.t}" x2="${x(i)}" y2="${h-pad.b}"></line>`).join('')}
     <polygon class="score-area" points="${area}"></polygon><polyline class="score-line-shadow" points="${points}"></polyline><polyline class="score-line" points="${points}"></polyline>
     <line class="selection-guide" x1="0" y1="${pad.t}" x2="0" y2="${h-pad.b}" hidden></line>
     ${rows.map((r,i)=>`<circle class="point-hit" data-index="${i}" cx="${x(i)}" cy="${y(r.score)}" r="15"></circle>`).join('')}
     ${rows.map((r,i)=>`<circle class="point" tabindex="0" role="button" aria-label="${timeOnly(r.time)} ${r.score}점" data-index="${i}" cx="${x(i)}" cy="${y(r.score)}" r="4.5"></circle>`).join('')}
-    ${rows.filter((_,i)=>i%2===0).map((r,i)=>`<text class="time-label" text-anchor="middle" x="${x(i*2)}" y="${h-12}">${timeOnly(r.time)}</text>`).join('')}
+    ${rows.map((r,i)=>({r,i})).filter(({i})=>i%labelStep===0).map(({r,i})=>`<text class="time-label" text-anchor="middle" x="${x(i)}" y="${h-12}">${timeOnly(r.time)}</text>`).join('')}
   </svg><div class="chart-tooltip" role="status" hidden></div></div>`;
   const canvas=container.querySelector('.chart-canvas');
   const tooltip=container.querySelector('.chart-tooltip');
@@ -40,7 +45,9 @@ export function renderHourlyChart(container, rows, onSelect) {
     container.querySelectorAll('.point').forEach(p=>p.classList.toggle('selected',Number(p.dataset.index)===index));
     guide.hidden=false;guide.setAttribute('x1',x(index));guide.setAttribute('x2',x(index));
     tooltip.innerHTML=`<strong>${row.time.replace('T',' ')} (${weatherLabel(row.weather_code)})</strong><span><i class="tooltip-dot"></i>러닝 스코어: ${row.score}점</span><span>기온: ${number(row.temperature_2m)}°C (체감 ${number(row.apparent_temperature)}°C)</span><span>이슬점: ${number(row.dew_point_2m)}°C | 습도: ${number(row.relative_humidity_2m,0)}%</span><span>강수확률: ${number(row.precipitation_probability,0)}% | 풍속: ${number(row.wind_speed_10m)} km/h</span>`;
-    const left=Math.min(w-116,Math.max(116,x(index)));
+    const tooltipWidth=Math.min(232,Math.max(190,w-16));
+    const left=Math.min(w-tooltipWidth/2-8,Math.max(tooltipWidth/2+8,x(index)));
+    tooltip.style.width=`${tooltipWidth}px`;
     tooltip.style.left=`${left}px`;
     tooltip.style.top=`${Math.max(4,74+y(row.score)-88)}px`;tooltip.hidden=false;
     onSelect(row);
@@ -60,5 +67,5 @@ export function renderHourlyChart(container, rows, onSelect) {
   const nowMinute=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Seoul'}).replace(' ','T').slice(0,16);
   const firstFuture=rows.findIndex(r=>r.time.slice(0,16)>=nowMinute);
   const initial=container.querySelector(`.point[data-index="${firstFuture>=0?firstFuture:0}"]`) || container.querySelector('.point');
-  if(initial){initial.classList.add('selected');onSelect(rows[Number(initial.dataset.index)]);}
+  if(initial){const index=Number(initial.dataset.index);initial.classList.add('selected');onSelect(rows[index]);if(canvas.scrollWidth>container.clientWidth)container.scrollLeft=Math.max(0,x(index)-container.clientWidth/2);}
 }
