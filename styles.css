@@ -42,4 +42,40 @@
 .chart .point{pointer-events:none}.chart .point-hit{fill:transparent;stroke:transparent;cursor:pointer;touch-action:manipulation}
 .workout-condition-good .bar i{background:#238ad6}.workout-condition-normal .bar i{background:#2ca65a}.workout-condition-bad .bar i{background:#e5aa12}.workout-condition-very-bad .bar i{background:#d94b4b}
 .location-result:hover,.location-result:focus{border-color:var(--primary);background:var(--primary-soft)}
+[data-theme="dark"] .condition-good{background:#12344f!important;color:#9bd3ff}
+[data-theme="dark"] .condition-normal{background:#183b28!important;color:#9ae6ae}
+[data-theme="dark"] .condition-bad{background:#493a12!important;color:#ffe08a}
+[data-theme="dark"] .condition-very-bad{background:#4a2328!important;color:#ffaaa8}
+[data-theme="dark"] .condition-unknown{background:#1b2734!important;color:#c0ccd8}
+[data-theme="dark"] .hero[data-condition="good"],[data-theme="dark"] .current-card[data-condition="good"]{background:linear-gradient(120deg,var(--surface) 42%,#102f49)}
+[data-theme="dark"] .hero[data-condition="normal"],[data-theme="dark"] .current-card[data-condition="normal"]{background:linear-gradient(120deg,var(--surface) 42%,#173526)}
+[data-theme="dark"] .hero[data-condition="bad"],[data-theme="dark"] .current-card[data-condition="bad"]{background:linear-gradient(120deg,var(--surface) 42%,#393013)}
+[data-theme="dark"] .hero[data-condition="very-bad"],[data-theme="dark"] .current-card[data-condition="very-bad"]{background:linear-gradient(120deg,var(--surface) 42%,#3b2025)}
+[data-theme="dark"] .metric span,[data-theme="dark"] .hourly-metrics small{color:#c2cfdb}
+[data-theme="dark"] .metric.condition-good strong,[data-theme="dark"] .metric.condition-normal strong,[data-theme="dark"] .metric.condition-bad strong,[data-theme="dark"] .metric.condition-very-bad strong,[data-theme="dark"] .hourly-metrics>span strong{color:#f8fbff}
+[data-theme="dark"] .metric em,[data-theme="dark"] .hourly-metrics em{background:#0d1722cc}
+[data-theme="dark"] .condition-good em{color:#9bd3ff}
+[data-theme="dark"] .condition-normal em{color:#9ae6ae}
+[data-theme="dark"] .condition-bad em{color:#ffe08a}
+[data-theme="dark"] .condition-very-bad em{color:#ffaaa8}
+[data-theme="dark"] .condition-text-good{color:#8dccff!important}
+[data-theme="dark"] .condition-text-normal{color:#8de0a4!important}
+[data-theme="dark"] .condition-text-bad{color:#ffdc78!important}
+[data-theme="dark"] .condition-text-very-bad{color:#ff9f9d!important}
+[data-theme="dark"] .current-card .sun-row{color:#f2f7fc}
+[data-theme="dark"] .current-card .fine-print{color:#c2cfdb}
+[data-theme="dark"] .chart .grid-line,[data-theme="dark"] .chart .hour-guide{stroke:#34485c}
+[data-theme="dark"] .chart .score-line-shadow{stroke:#0b131d}
+[data-theme="dark"] .chart .score-line{stroke:#78c4ff}
+[data-theme="dark"] .chart .point{fill:#101a26;stroke:#75c2ff}
+[data-theme="dark"] .chart .point:hover,[data-theme="dark"] .chart .point:focus,[data-theme="dark"] .chart .point.selected{filter:drop-shadow(0 0 5px #67b3ff99)}
+[data-theme="dark"] .chart .selection-guide{stroke:#86cbff;opacity:.9}
+[data-theme="dark"] .chart text{fill:#b9d0e5}
+[data-theme="dark"] .chart-tooltip{border-color:#47617a;background:#101a26f7;box-shadow:0 10px 26px #0008}
+[data-theme="dark"] .chart-tooltip span{color:#c5d2df}
+[data-theme="dark"] .tooltip-dot{background:#78c4ff}
+[data-theme="dark"] .hourly-detail{background:#1b2836}
+[data-theme="dark"] .segmented .active,[data-theme="dark"] .calculator-tabs .active{background:#4da9ff;color:#071421}
+[data-theme="dark"] .offline-banner{background:#443812;color:#ffe08a}
+[data-theme="dark"] .error-banner{background:#482127;color:#ffb1af}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
