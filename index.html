@@ -8,8 +8,8 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=6">
-  <link rel="stylesheet" href="./responsive.css?v=6">
+  <link rel="stylesheet" href="./styles.css?v=7">
+  <link rel="stylesheet" href="./responsive.css?v=7">
 </head>
 <body>
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
@@ -67,8 +67,8 @@
         </ol>
       </article>
 
-      <article class="card current-card">
-        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2></div><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div>
+      <article id="currentWeatherCard" class="card current-card">
+        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
         <div id="weatherMetrics" class="metric-grid"></div>
         <div class="sun-row"><span>☀ 일출 <strong id="sunrise">--:--</strong></span><span>◐ 일몰 <strong id="sunset">--:--</strong></span></div>
         <p id="sunStatus" class="muted"></p>
@@ -85,7 +85,7 @@
     <section class="dashboard-grid split-grid">
       <article class="card">
         <div class="section-heading"><div><p class="eyebrow">COMPARE</p><h2>오늘 vs 내일</h2></div></div>
-        <div class="compare-grid"><div><span>TODAY</span><strong id="compareToday">--</strong><small id="compareTodayGrade">분석 중</small></div><div class="compare-divider">VS</div><div><span>TOMORROW</span><strong id="compareTomorrow">--</strong><small id="compareTomorrowGrade">분석 중</small></div></div>
+        <div class="compare-grid"><div><span>TODAY</span><strong id="compareToday">--</strong><small id="compareTodayGrade">분석 중</small><p id="compareTodayReason" class="compare-reason"></p></div><div class="compare-divider">VS</div><div><span>TOMORROW</span><strong id="compareTomorrow">--</strong><small id="compareTomorrowGrade">분석 중</small><p id="compareTomorrowReason" class="compare-reason"></p></div></div>
         <p id="comparisonMessage" class="coach-copy">데이터를 불러오는 중입니다.</p>
       </article>
       <article class="card">
@@ -116,8 +116,7 @@
     <section id="pace" class="card wide-section" aria-labelledby="paceTitle">
       <div class="section-heading"><div><p class="eyebrow">PACE LAB</p><h2 id="paceTitle">목표 페이스 계산기</h2></div></div>
       <div class="calculator-tabs" role="tablist" aria-label="계산 방식">
-        <button class="active" role="tab" aria-selected="true" data-calc-mode="goal">거리 + 목표 기록</button>
-        <button role="tab" aria-selected="false" data-calc-mode="pace">페이스 입력</button>
+        <button class="active" role="tab" aria-selected="true" data-calc-mode="pace">페이스 입력</button>
         <button role="tab" aria-selected="false" data-calc-mode="speed">속도 입력</button>
       </div>
       <div id="calculatorInputs" class="calculator-inputs"></div>
@@ -147,6 +146,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=6"></script>
+  <script type="module" src="./app.js?v=7"></script>
 </body>
 </html>
