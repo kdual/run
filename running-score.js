@@ -10,7 +10,7 @@ function bandPenalty(value, idealLow, idealHigh, outerLow, outerHigh) {
 
 export function getGrade(score) { return SCORE_GRADES.find(g => score >= g.min) || SCORE_GRADES.at(-1); }
 
-export function calculateRunningScore(c = {}) {
+export function runningScoreDeductions(c = {}) {
   const w = APP_CONFIG.weights;
   const temp = safe(c.apparent_temperature, safe(c.temperature_2m));
   const tempP = bandPenalty(temp, 5, 16, -12, 34);
@@ -20,7 +20,11 @@ export function calculateRunningScore(c = {}) {
   const windP = Math.max(Number.isFinite(c.wind_speed_10m) ? clamp((c.wind_speed_10m - 14) / 28) : 0, Number.isFinite(c.wind_gusts_10m) ? clamp((c.wind_gusts_10m - 25) / 40) : 0);
   const airP = Math.max(Number.isFinite(c.pm2_5) ? clamp((c.pm2_5 - 15) / 60) : 0, Number.isFinite(c.european_aqi) ? clamp((c.european_aqi - 20) / 100) : 0);
   const uvP = Number.isFinite(c.uv_index) && c.is_day !== 0 ? clamp((c.uv_index - 3) / 7) : 0;
-  const penalty = tempP*w.temperature + dewP*w.dewPoint + humidityP*w.humidity + rainP*w.rain + windP*w.wind + airP*w.airQuality + uvP*w.uv;
+  return { temperature:tempP*w.temperature, dewPoint:dewP*w.dewPoint, humidity:humidityP*w.humidity, rain:rainP*w.rain, wind:windP*w.wind, airQuality:airP*w.airQuality, uv:uvP*w.uv };
+}
+
+export function calculateRunningScore(c = {}) {
+  const penalty = Object.values(runningScoreDeductions(c)).reduce((sum,value)=>sum+value,0);
   return Math.round(clamp(100 - penalty));
 }
 
