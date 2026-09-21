@@ -40,7 +40,7 @@ export async function searchLocations(query, signal) {
   }));
   const results=[...new Map([...localMatches,...batches.flat()].map(r=>[r.id,r])).values()];
   return results.sort((a,b)=>{
-    const rank=r=>(r.id?.startsWith('local-kr-')?1000:0)+(r.country_code==='KR'?100:0)+(r.name===query?35:0)+(r.name===`${query}구`?50:0)+(r.name===`${query}시`?45:0)+(r.feature_code?.startsWith('ADM')?40:0)+(r.admin1?.includes('서울')?25:0)+Math.min(20,Math.log10((r.population||1)+1)*3);
+    const rank=r=>(typeof r.id==='string'&&r.id.startsWith('local-kr-')?1000:0)+(r.country_code==='KR'?100:0)+(r.name===query?35:0)+(r.name===`${query}구`?50:0)+(r.name===`${query}시`?45:0)+(r.feature_code?.startsWith('ADM')?40:0)+(r.admin1?.includes('서울')?25:0)+Math.min(20,Math.log10((r.population||1)+1)*3);
     return rank(b)-rank(a);
   }).slice(0,8);
 }
