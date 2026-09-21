@@ -1,0 +1,181 @@
+/* ==========================================================================
+   RUN INTEL DASHBOARD — RESPONSIVE & MOBILE-FIRST LAYOUT
+   ========================================================================== */
+
+/* Mobile Breakpoint (< 768px) */
+@media (max-width: 767px) {
+  .header-container {
+    padding: 10px 16px;
+    flex-wrap: wrap;
+  }
+
+  .brand-area {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .meta-controls {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+
+  .time-meta {
+    align-items: flex-start;
+  }
+
+  .dashboard-main {
+    padding: 16px 12px;
+    gap: 16px;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: var(--radius-md);
+  }
+
+  /* Two column grids collapse to 1 column on mobile */
+  .grid-two-col {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* SECTION 1: RUN NOW Hero Card on mobile */
+  .run-now-card {
+    padding: 18px 16px;
+  }
+
+  .score-display {
+    gap: 16px;
+  }
+
+  .score-circle {
+    width: 80px;
+    height: 80px;
+  }
+
+  .score-number {
+    font-size: 1.875rem;
+  }
+
+  .decision-phrase {
+    font-size: 0.9375rem;
+  }
+
+  .run-now-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .stat-pill {
+    padding: 8px 10px;
+  }
+
+  .stat-value {
+    font-size: 1rem;
+  }
+
+  .run-now-comparison {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .comp-divider {
+    display: none;
+  }
+
+  .best-time-col {
+    margin-left: 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: 8px;
+    width: 100%;
+  }
+
+  /* SECTION 4: Weather Grid */
+  .weather-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .weather-box {
+    padding: 10px 12px;
+  }
+
+  .w-val {
+    font-size: 1.125rem;
+  }
+
+  /* SECTION 5: Hourly Chart */
+  .chart-container {
+    height: 190px;
+  }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* SECTION 8: Workout Recommendation */
+  .workout-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* SECTION 11: Pace Calculator */
+  .input-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .calc-primary-results {
+    grid-template-columns: 1fr;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .res-val {
+    font-size: 1.5rem;
+  }
+
+  .splits-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .split-card {
+    padding: 8px 10px;
+  }
+
+  .split-time {
+    font-size: 1rem;
+  }
+
+  /* Footer */
+  .footer-attribution {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .footer-attribution .sep {
+    display: none;
+  }
+}
+
+/* Tablet Breakpoint (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .weather-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .workout-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .splits-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
