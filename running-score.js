@@ -1,4 +1,4 @@
-import { APP_CONFIG, SCORE_GRADES } from './running-score-config.js';
+import { APP_CONFIG } from './running-score-config.js?v=11';
 import { clamp, safe, dateOnly } from './utils.js';
 
 function bandPenalty(value, idealLow, idealHigh, outerLow, outerHigh) {
@@ -8,8 +8,6 @@ function bandPenalty(value, idealLow, idealHigh, outerLow, outerHigh) {
   return clamp((value - idealHigh) / Math.max(1, outerHigh - idealHigh), 0, 1);
 }
 
-export function getGrade(score) { return SCORE_GRADES.find(g => score >= g.min) || SCORE_GRADES.at(-1); }
-
 export function runningScoreDeductions(c = {}) {
   const w = APP_CONFIG.weights;
   const temp = safe(c.apparent_temperature, safe(c.temperature_2m));
@@ -18,7 +16,7 @@ export function runningScoreDeductions(c = {}) {
   const humidityP = Number.isFinite(c.relative_humidity_2m) ? (c.relative_humidity_2m <= 65 ? 0 : clamp((c.relative_humidity_2m - 65) / 35)) : 0;
   const rainP = Math.max(Number.isFinite(c.precipitation_probability) ? clamp((c.precipitation_probability - 15) / 75) : 0, Number.isFinite(c.precipitation) ? clamp(c.precipitation / 3) : 0);
   const windP = Math.max(Number.isFinite(c.wind_speed_10m) ? clamp((c.wind_speed_10m - 14) / 28) : 0, Number.isFinite(c.wind_gusts_10m) ? clamp((c.wind_gusts_10m - 25) / 40) : 0);
-  const airP = Math.max(Number.isFinite(c.pm2_5) ? clamp((c.pm2_5 - 15) / 60) : 0, Number.isFinite(c.european_aqi) ? clamp((c.european_aqi - 20) / 100) : 0);
+  const airP = Math.max(Number.isFinite(c.pm2_5) ? clamp((c.pm2_5 - 15) / 60) : 0, Number.isFinite(c.air_quality_index) ? clamp((c.air_quality_index - 50) / 200) : 0);
   const uvP = Number.isFinite(c.uv_index) && c.is_day !== 0 ? clamp((c.uv_index - 3) / 7) : 0;
   return { temperature:tempP*w.temperature, dewPoint:dewP*w.dewPoint, humidity:humidityP*w.humidity, rain:rainP*w.rain, wind:windP*w.wind, airQuality:airP*w.airQuality, uv:uvP*w.uv };
 }
@@ -29,21 +27,33 @@ export function calculateRunningScore(c = {}) {
 }
 
 export function mergeHourly(weather, air) {
-  const airIndex = new Map((air?.hourly?.time || []).map((t, i) => [t, i]));
+  const airDate=air?.current?.measured_at?.slice(0,10);
+  const airForecast=new Map((air?.daily||[]).map(row=>[row.date,row]));
   return (weather.hourly.time || []).map((time, i) => {
     const row = { time };
     for (const [key, values] of Object.entries(weather.hourly)) if (key !== 'time') row[key] = values[i];
-    const ai = airIndex.get(time);
-    if (ai !== undefined) for (const key of ['pm2_5','pm10','european_aqi']) row[key] = air.hourly[key]?.[ai] ?? null;
+    const date=dateOnly(time);
+    if(air?.current&&date===airDate){
+      row.pm2_5=air.current.pm2_5;row.pm10=air.current.pm10;row.air_quality_index=air.current.air_quality_index;row.air_quality_estimated=false;
+    }else{
+      const forecast=airForecast.get(date);
+      row.pm2_5=forecast?.pm2_5??null;row.pm10=forecast?.pm10??null;row.air_quality_index=airGradeIndex(forecast?.pm2_5_grade,forecast?.pm10_grade);row.air_quality_estimated=Boolean(forecast);
+    }
     row.score = calculateRunningScore(row);
     return row;
   });
 }
 
+function airGradeIndex(pm25,pm10){
+  const grade={좋음:25,보통:75,나쁨:125,매우나쁨:200};
+  const values=[grade[pm25],grade[pm10]].filter(Number.isFinite);
+  return values.length?Math.max(...values):null;
+}
+
 export function currentConditions(weather, hourly) {
   const c = { ...weather.current };
   const nearest = hourly.reduce((best, row) => Math.abs(new Date(row.time) - new Date(weather.current.time)) < Math.abs(new Date(best.time) - new Date(weather.current.time)) ? row : best, hourly[0]);
-  for (const key of ['precipitation_probability','uv_index','pm2_5','pm10','european_aqi','visibility']) c[key] = nearest?.[key] ?? null;
+  for (const key of ['precipitation_probability','uv_index','pm2_5','pm10','air_quality_index','air_quality_estimated','visibility']) c[key] = nearest?.[key] ?? null;
   c.score = calculateRunningScore(c);
   return c;
 }

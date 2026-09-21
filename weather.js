@@ -1,46 +1,100 @@
-import { APP_CONFIG } from './running-score-config.js';
-
-const HOURLY = ['temperature_2m','apparent_temperature','relative_humidity_2m','dew_point_2m','precipitation_probability','precipitation','rain','weather_code','cloud_cover','visibility','wind_speed_10m','wind_direction_10m','wind_gusts_10m','uv_index','is_day'];
-const CURRENT = ['temperature_2m','apparent_temperature','relative_humidity_2m','dew_point_2m','precipitation','rain','weather_code','cloud_cover','wind_speed_10m','wind_direction_10m','wind_gusts_10m','is_day'];
-
-const LOCAL_KR_LOCATIONS = [
-  {
-    id: 'local-kr-songpa',
-    name: '송파구',
-    latitude: 37.5145,
-    longitude: 127.1059,
-    country: '대한민국',
-    country_code: 'KR',
-    admin1: '서울특별시',
-    feature_code: 'ADM2',
-    aliases: ['송파', '송파구', '서울송파', '서울송파구', '서울특별시송파구']
-  }
-];
-
-const normalizedLocationQuery = value => value.replace(/\s+/g, '').toLowerCase();
+import { APP_CONFIG } from './running-score-config.js?v=11';
 
 export async function fetchWeather({ latitude, longitude }, signal) {
-  const p = new URLSearchParams({ latitude, longitude, timezone: APP_CONFIG.timezone, forecast_days: '7', current: CURRENT.join(','), hourly: HOURLY.join(','), daily: 'weather_code,sunrise,sunset,uv_index_max,precipitation_probability_max,temperature_2m_max,temperature_2m_min' });
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${p}`, { signal });
-  if (!response.ok) throw new Error(`날씨 API 오류 (${response.status})`);
-  return response.json();
+  const params = new URLSearchParams({ latitude, longitude });
+  const response = await fetch(`${APP_CONFIG.apiBaseUrl}/weather?${params}`, { signal });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.hourly || !data?.current) {
+    throw new Error(data?.message || `기상청 날씨 API 오류 (${response.status})`);
+  }
+  return data;
 }
 
-export async function searchLocations(query, signal) {
-  const normalizedQuery=normalizedLocationQuery(query);
-  const localMatches=LOCAL_KR_LOCATIONS.filter(location=>location.aliases.includes(normalizedQuery));
-  const isKorean=/[가-힣]/.test(query);
-  const terms=isKorean&&!/[구군시도]$/.test(query)?[query,`${query}구`,`${query}시`]:[query];
-  const batches=await Promise.all(terms.map(async name=>{
-    const p=new URLSearchParams({name,count:'30',language:'ko',format:'json'});
-    if(isKorean)p.set('countryCode','KR');
-    const response=await fetch(`https://geocoding-api.open-meteo.com/v1/search?${p}`,{signal});
-    if(!response.ok)throw new Error('지역 검색에 실패했습니다.');
-    return (await response.json()).results||[];
-  }));
-  const results=[...new Map([...localMatches,...batches.flat()].map(r=>[r.id,r])).values()];
-  return results.sort((a,b)=>{
-    const rank=r=>(typeof r.id==='string'&&r.id.startsWith('local-kr-')?1000:0)+(r.country_code==='KR'?100:0)+(r.name===query?35:0)+(r.name===`${query}구`?50:0)+(r.name===`${query}시`?45:0)+(r.feature_code?.startsWith('ADM')?40:0)+(r.admin1?.includes('서울')?25:0)+Math.min(20,Math.log10((r.population||1)+1)*3);
-    return rank(b)-rank(a);
-  }).slice(0,8);
+function kakaoServices() {
+  if (!window.kakao?.maps?.services) throw new Error('카카오 지도 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  return window.kakao.maps.services;
+}
+
+function keywordSearch(query) {
+  return new Promise((resolve, reject) => {
+    const services = kakaoServices();
+    new services.Places().keywordSearch(query, (results, status) => {
+      if (status === services.Status.OK) resolve(results);
+      else if (status === services.Status.ZERO_RESULT) resolve([]);
+      else reject(new Error('카카오 장소 검색에 실패했습니다.'));
+    }, { size: 10 });
+  });
+}
+
+function addressSearch(query) {
+  return new Promise((resolve, reject) => {
+    const services = kakaoServices();
+    new services.Geocoder().addressSearch(query, (results, status) => {
+      if (status === services.Status.OK) resolve(results);
+      else if (status === services.Status.ZERO_RESULT) resolve([]);
+      else reject(new Error('카카오 주소 검색에 실패했습니다.'));
+    });
+  });
+}
+
+const splitAddress = value => {
+  const parts = String(value || '').trim().split(/\s+/);
+  return { region1: parts[0] || '', region2: parts[1] || '', region3: parts[2] || '' };
+};
+
+export async function searchLocations(query) {
+  const [places, addresses] = await Promise.all([keywordSearch(query), addressSearch(query)]);
+  const normalized = [];
+  for (const place of places) {
+    const address = place.road_address_name || place.address_name;
+    normalized.push({
+      id: `place-${place.id}`,
+      name: place.place_name,
+      address,
+      roadAddress: place.road_address_name || '',
+      latitude: Number(place.y),
+      longitude: Number(place.x),
+      ...splitAddress(place.address_name),
+      category: place.category_group_name || place.category_name || '장소'
+    });
+  }
+  for (const item of addresses) {
+    const address = item.road_address?.address_name || item.address_name;
+    normalized.push({
+      id: `address-${item.x}-${item.y}`,
+      name: address,
+      address,
+      roadAddress: item.road_address?.address_name || '',
+      latitude: Number(item.y),
+      longitude: Number(item.x),
+      ...splitAddress(item.address_name),
+      category: '주소'
+    });
+  }
+  return [...new Map(normalized.map(item => [`${item.latitude.toFixed(6)},${item.longitude.toFixed(6)}`, item])).values()].slice(0, 8);
+}
+
+export function reverseGeocode(latitude, longitude) {
+  return new Promise((resolve, reject) => {
+    const services = kakaoServices();
+    new services.Geocoder().coord2Address(longitude, latitude, (results, status) => {
+      if (status !== services.Status.OK || !results[0]) {
+        reject(new Error('현재 위치의 주소를 확인하지 못했습니다.'));
+        return;
+      }
+      const result = results[0];
+      const address = result.road_address?.address_name || result.address?.address_name || '현재 위치';
+      const region = result.address || {};
+      resolve({
+        name: [region.region_1depth_name, region.region_2depth_name].filter(Boolean).join(' '),
+        address,
+        roadAddress: result.road_address?.address_name || '',
+        latitude,
+        longitude,
+        region1: region.region_1depth_name || '',
+        region2: region.region_2depth_name || '',
+        region3: region.region_3depth_name || ''
+      });
+    });
+  });
 }

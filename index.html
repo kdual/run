@@ -8,8 +8,9 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=10">
-  <link rel="stylesheet" href="./responsive.css?v=10">
+  <link rel="stylesheet" href="./styles.css?v=11">
+  <link rel="stylesheet" href="./responsive.css?v=11">
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
@@ -68,7 +69,7 @@
       </article>
 
       <article id="currentWeatherCard" class="card current-card">
-        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
+        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2><small id="observationSource" class="data-source">기상청·에어코리아 연결 중</small></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
         <div id="weatherMetrics" class="metric-grid"></div>
         <div class="sun-row"><span>☀ 일출 <strong id="sunrise">--:--</strong></span><span>◐ 일몰 <strong id="sunset">--:--</strong></span></div>
         <p id="sunStatus" class="muted"></p>
@@ -134,18 +135,20 @@
     </section>
   </main>
 
-  <footer><p>Weather data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open‑Meteo</a> · Air quality data: Open‑Meteo / CAMS</p><p>RUNWISE · 개인용 러닝 환경 참고 대시보드</p></footer>
+  <footer><p>날씨: 기상청 초단기실황·단기예보 · 대기질: 한국환경공단 에어코리아 측정소 실측·예보</p><p>RUNWISE · 개인용 러닝 환경 참고 대시보드</p></footer>
 
   <dialog id="locationDialog">
     <form method="dialog" class="dialog-card"><div class="dialog-heading"><h2>지역 설정</h2><button value="cancel" aria-label="닫기">×</button></div>
-      <p class="muted">현재 위치를 사용하거나 지역명을 검색하세요.</p>
+      <p class="muted">현재 위치를 사용하거나 국내 주소·장소명을 검색하세요.</p>
       <button id="useMyLocation" class="primary-button" type="button">현재 위치 사용</button>
-      <div class="search-row"><label class="sr-only" for="locationSearch">지역명</label><input id="locationSearch" placeholder="예: 송파구, 부산, Tokyo" autocomplete="off"><button id="searchLocation" type="button">검색</button></div>
+      <div class="search-row"><label class="sr-only" for="locationSearch">주소 또는 장소명</label><input id="locationSearch" placeholder="예: 송파구, 올림픽공원, 백제고분로" autocomplete="off"><button id="searchLocation" type="button">검색</button></div>
       <div id="locationResults" class="location-results" role="listbox"></div>
+      <div id="locationMap" class="location-map" role="img" aria-label="선택 위치 지도"></div>
+      <button id="locationConfirm" class="primary-button location-confirm" type="button" hidden>선택한 위치 사용</button>
       <p id="locationError" class="field-error" role="alert"></p>
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=10"></script>
+  <script type="module" src="./app.js?v=11"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const PREFIX = 'runwise:';
+const PREFIX = 'runwise:v2:';
 export function getStored(key, fallback = null) { try { const v = localStorage.getItem(PREFIX + key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } }
 export function setStored(key, value) { try { localStorage.setItem(PREFIX + key, JSON.stringify(value)); } catch { /* private mode/full storage */ } }
 export function getCache(location) {

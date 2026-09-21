@@ -1,7 +1,11 @@
-import { APP_CONFIG } from './running-score-config.js';
-export async function fetchAirQuality({ latitude, longitude }, signal) {
-  const p = new URLSearchParams({ latitude, longitude, timezone: APP_CONFIG.timezone, forecast_days: '5', hourly: 'pm10,pm2_5,european_aqi' });
-  const response = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${p}`, { signal });
-  if (!response.ok) throw new Error(`대기질 API 오류 (${response.status})`);
-  return response.json();
+import { APP_CONFIG } from './running-score-config.js?v=11';
+export async function fetchAirQuality(location, signal) {
+  const p = new URLSearchParams({
+    sidoName: location.region1 || location.name?.split(' ')[0] || '서울',
+    stationName: location.region2 || ''
+  });
+  const response = await fetch(`${APP_CONFIG.apiBaseUrl}/air?${p}`, { signal });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) throw new Error(data?.message || `에어코리아 API 오류 (${response.status})`);
+  return data;
 }

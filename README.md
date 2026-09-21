@@ -1,14 +1,14 @@
 # RUNWISE — Running Dashboard
 
-Open‑Meteo의 실시간·예보 데이터를 이용해 러닝 환경을 분석하고, 목표 기록에 필요한 페이스와 속도를 계산하는 정적 웹사이트입니다. 개인 PB나 대회 기록은 저장하지 않습니다.
+기상청·에어코리아 데이터를 이용해 국내 러닝 환경을 분석하고, 목표 기록에 필요한 페이스와 속도를 계산하는 정적 웹사이트입니다. 주소와 장소 검색은 카카오맵을 사용하며 개인 PB나 대회 기록은 저장하지 않습니다.
 
 ## 주요 기능
 
-- 현재·오늘·내일·7일 Running Score(0–100)
+- 현재·오늘·내일 Running Score와 단기예보 범위 내 주간 점수(0–100)
 - 시간대별 점수, 오늘의 추천 시간 TOP 3, 훈련 종류별 적합도
 - 규칙 기반 러닝 코치, 복장 및 환경 주의사항
-- 브라우저 현재 위치 및 Open‑Meteo 지역 검색
-- 거리+목표 기록, 페이스, 속도 기준 계산과 페이스 표
+- 브라우저 현재 위치 및 카카오 국내 주소·장소 검색과 지도 확인
+- 페이스·속도 기준 계산과 페이스 표
 - 모바일 반응형 UI, 다크 모드, 20분 로컬 캐시, PWA
 - 날씨 API가 실패해도 마지막 저장 데이터 사용, 대기질만 실패하면 나머지 기능 유지
 
@@ -19,6 +19,7 @@ run/
 ├─ index.html
 ├─ styles.css / responsive.css
 ├─ app.js 외 모듈       # API, 점수, 코치, 계산기, 차트, 저장소
+├─ cloudflare-worker.js  # 기상청·에어코리아 보안 중계 API
 ├─ running-score-config.js
 ├─ icon.svg / PNG       # 앱 아이콘
 ├─ manifest.json
@@ -43,6 +44,7 @@ python -m http.server 8000
 `running-score-config.js`에서 다음을 조정할 수 있습니다.
 
 - `defaultLocation`: 첫 접속 기본 지역과 좌표
+- `apiBaseUrl`: 배포한 Cloudflare Worker 주소
 - `cacheMinutes`: API 캐시 시간
 - `runningHours`: 추천 시간 탐색 범위
 - `weights`: 기온, 이슬점, 습도, 비, 바람, 대기질, UV 가중치
@@ -51,17 +53,22 @@ python -m http.server 8000
 
 Running Score는 환경 참고지수이며 의학적 안전 판정이 아닙니다. 점수 계산식은 `running-score.js`, 문장 규칙은 `running-coach.js`, 페이스 계산은 `pace-calculator.js`에서 확장합니다.
 
-## 데이터와 캐시 구조
+## 데이터와 배포 구조
 
-날씨는 Open‑Meteo Forecast API, 대기질은 Open‑Meteo Air Quality API(CAMS 기반)를 사용합니다. API 키나 Secret은 필요하지 않습니다. 선택 위치, 테마, 최근 응답만 브라우저 LocalStorage에 저장합니다. Service Worker는 정적 파일만 캐시하며 Open‑Meteo 응답은 가로채지 않습니다. 오프라인 또는 갱신 실패 시 화면에 저장 데이터임을 명시합니다.
+날씨는 기상청 초단기실황·단기예보, 대기질은 에어코리아 측정소 실측·예보를 사용합니다. 공공데이터 인증키는 브라우저나 GitHub 저장소에 두지 않고 Cloudflare Worker의 `DATA_GO_KR_SERVICE_KEY` Secret에 저장합니다. Worker에는 `ALLOWED_ORIGIN=https://kdual.github.io` 변수도 필요합니다.
+
+Cloudflare 대시보드의 Worker 편집기에 `cloudflare-worker.js` 내용을 반영하고 배포한 뒤, `running-score-config.js`의 `apiBaseUrl`을 해당 Worker 주소로 설정합니다. 카카오 JavaScript 키에는 `https://kdual.github.io` 도메인을 등록해야 합니다.
+
+선택 위치, 테마, 최근 응답만 브라우저 LocalStorage에 저장합니다. 오프라인 또는 갱신 실패 시 마지막 저장 데이터임을 화면에 명시합니다. 현재 승인된 기상청 단기예보만으로는 7일 전체를 채울 수 없으므로 범위 밖 날짜는 점수를 임의 생성하지 않고 “예보 준비 중”으로 표시합니다. 7일 전체는 기상청 중기예보 API 승인 후 확장합니다.
 
 ## 문제 해결
 
-- 지역 검색이 안 되면 인터넷 연결과 Open‑Meteo 접속 여부를 확인합니다.
+- 지역 검색이 안 되면 카카오 JavaScript SDK 도메인 등록과 인터넷 연결을 확인합니다.
+- 날씨가 비어 있으면 Worker의 `/health`, `/weather?latitude=37.5145&longitude=127.1059` 응답과 Secret 설정을 확인합니다.
 - 위치 권한이 거부되어도 검색 또는 기본 위치로 정상 작동합니다.
 - 배포 직후 이전 화면이 보이면 브라우저 새로고침 또는 사이트 데이터 삭제 후 다시 엽니다.
 - Pages에서 404가 나오면 `run/index.html` 경로와 Pages 배포 브랜치를 확인합니다.
-- 대기질만 비어 있으면 Air Quality API 일시 오류일 수 있으며 날씨 점수는 대기질 항목을 제외하고 계산됩니다.
+- 대기질만 비어 있으면 `/air?sidoName=서울&stationName=송파구` 응답을 확인합니다. 주소의 구·군명과 일치하는 측정소가 없으면 정확성을 위해 다른 측정소를 임의 대체하지 않습니다.
 
 ## 향후 확장 위치
 
@@ -69,4 +76,4 @@ Garmin CSV, 주간 거리, 신발 마일리지, 훈련 부하 등은 별도 모�
 
 ## 출처
 
-Weather data: [Open‑Meteo](https://open-meteo.com/) · Air quality data: Open‑Meteo / CAMS
+날씨: 기상청 초단기실황·단기예보 · 대기질: 한국환경공단 에어코리아 · 주소·지도: 카카오맵

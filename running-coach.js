@@ -2,7 +2,7 @@ import { safe } from './utils.js';
 
 export function coachMessage(c, best) {
   const messages=[];
-  if (safe(c.pm2_5,0) > 35 || safe(c.european_aqi,0) > 80) messages.push('대기질이 좋지 않아 야외 고강도 러닝은 피하는 편이 좋습니다.');
+  if (safe(c.pm2_5,0) > 35 || safe(c.air_quality_index,0) > 100) messages.push('대기질이 좋지 않아 야외 고강도 러닝은 피하는 편이 좋습니다.');
   if (safe(c.precipitation_probability,0) >= 60 || safe(c.precipitation,0) >= 1) messages.push('비 가능성이 높아 짧은 Easy Run이 더 적합합니다.');
   if (safe(c.dew_point_2m,-20) >= 18) messages.push('이슬점이 높아 후반부 체감 부담이 커질 수 있습니다.');
   if (safe(c.apparent_temperature,0) >= 28) messages.push('체감온도가 높아 페이스를 낮추고 수분을 자주 보충하세요.');
