@@ -49,7 +49,7 @@ export function renderHourlyChart(container, rows, onSelect) {
     point.addEventListener('mouseenter',()=>activate(point));
     point.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate(point);}});
   });
-  const nowHour=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Seoul'}).replace(' ','T').slice(0,13);
-  const firstFuture=rows.findIndex(r=>r.time.slice(0,13)>=nowHour);
+  const nowMinute=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Seoul'}).replace(' ','T').slice(0,16);
+  const firstFuture=rows.findIndex(r=>r.time.slice(0,16)>=nowMinute);
   activate(container.querySelector(`.point[data-index="${firstFuture>=0?firstFuture:0}"]`) || container.querySelector('.point'));
 }
