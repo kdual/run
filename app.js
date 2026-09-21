@@ -1,11 +1,11 @@
 import { APP_CONFIG } from './running-score-config.js';
-import { fetchWeather, searchLocations } from './weather.js';
+import { fetchWeather, searchLocations } from './weather.js?v=5';
 import { fetchAirQuality } from './air-quality.js';
 import { getStored, setStored, getCache, setCache } from './storage.js';
 import { currentConditions, dailyScore, findBestRunningTimes, getGrade, mergeHourly, rowsForDate, workoutScores } from './running-score.js';
 import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js';
 import { fromGoal, fromPace, fromSpeed, paceTableRows, renderPace } from './pace-calculator.js';
-import { renderHourlyChart } from './charts.js';
+import { renderHourlyChart } from './charts.js?v=5';
 import { dateOnly, escapeHtml, formatValue, monthDay, parseClock, round, secondsToClock, timeOnly, weatherSymbol, weekday } from './utils.js';
 
 const $ = id => document.getElementById(id);
