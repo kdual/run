@@ -1,11 +1,11 @@
 import { APP_CONFIG } from './running-score-config.js';
-import { fetchWeather, searchLocations } from './weather.js?v=8';
+import { fetchWeather, searchLocations } from './weather.js?v=9';
 import { fetchAirQuality } from './air-quality.js';
 import { getStored, setStored, getCache, setCache } from './storage.js';
-import { currentConditions, dailyScore, findBestRunningTimes, getGrade, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=8';
+import { currentConditions, dailyScore, findBestRunningTimes, getGrade, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=9';
 import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js';
 import { fromPace, fromSpeed, paceTableRows, renderPace } from './pace-calculator.js';
-import { renderHourlyChart } from './charts.js?v=8';
+import { renderHourlyChart } from './charts.js?v=9';
 import { dateOnly, escapeHtml, formatValue, monthDay, parseClock, round, secondsToClock, timeOnly, weatherSymbol, weekday } from './utils.js';
 
 const $ = id => document.getElementById(id);
@@ -63,7 +63,7 @@ function renderCoach(c,best){$('coachMessage').textContent=coachMessage(c,best);
 
 function renderWeekly(w,hourly){const scores=w.daily.time.map(date=>dailyScore(rowsForDate(hourly,date)));const max=Math.max(...scores.filter(Number.isFinite));$('weeklyCards').innerHTML=w.daily.time.map((date,i)=>{const condition=scoreCondition(scores[i]??0);return`<button class="day-card ${i===0?'active':''}" data-day-index="${i}" aria-label="${monthDay(date)} ${scores[i]}점 ${condition.label}"><span>${i===0?'오늘':weekday(date)}</span><small>${monthDay(date)}</small><div class="day-icon">${weatherSymbol(w.daily.weather_code[i])}</div><strong>${scores[i]??'--'}</strong><small class="day-condition condition-${condition.key}">${condition.label}</small>${scores[i]===max?'<small class="best-badge">BEST DAY</small>':''}</button>`;}).join('');document.querySelectorAll('.day-card').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.day-card').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderSelectedDay(Number(btn.dataset.dayIndex),w,hourly,scores);}));renderSelectedDay(0,w,hourly,scores);}
 function renderSelectedDay(i,w,hourly,scores){const date=w.daily.time[i],allRows=rowsForDate(hourly,date);let recommendationRows=allRows;if(i===0)recommendationRows=recommendationRows.filter(r=>r.time>=w.current.time);const best=findBestRunningTimes(recommendationRows,1)[0],condition=scoreCondition(scores[i]??0);$('selectedDayDetail').innerHTML=`<div class="selected-day-summary"><strong>${monthDay(date)} (${weekday(date)}) · ${scores[i]??'--'}점 · ${condition.label}</strong><span>기온 ${formatValue(w.daily.temperature_2m_min[i],'°',0)}–${formatValue(w.daily.temperature_2m_max[i],'°C',0)}</span><span>강수확률 ${formatValue(w.daily.precipitation_probability_max[i],'%')}</span><span>최대 UV ${formatValue(w.daily.uv_index_max[i],'',1)}</span><span>추천 시간 ${best?`${timeOnly(best.start)}–${endLabel(best)}`:'남은 추천 시간 없음'}</span></div><p class="score-reason">${scoreReason(allRows)}</p>`;}
-function renderWorkouts(c){const scores=workoutScores(c);$('workoutScores').innerHTML=Object.entries(scores).map(([name,score])=>`<div class="workout-row"><span>${name}</span><div class="bar"><i style="width:${score}%"></i></div><strong>${score}</strong></div>`).join('');}
+function renderWorkouts(c){const scores=workoutScores(c);$('workoutScores').innerHTML=Object.entries(scores).map(([name,score])=>{const condition=scoreCondition(score);return`<div class="workout-row workout-condition-${condition.key}"><span>${name}</span><div class="bar"><i style="width:${score}%"></i></div><strong>${score}</strong></div>`;}).join('');}
 function renderGear(c){$('gearAdvice').innerHTML=Object.entries(gearAdvice(c)).map(([k,v])=>`<div class="gear-item"><span>${k}</span><strong>${v}</strong></div>`).join('');}
 
 function calculatorTemplate(){const html=state.calcMode==='pace'?`<div class="field"><label for="paceInput">페이스 (분:초/km)</label><input id="paceInput" value="5:00" inputmode="numeric"></div>`:`<div class="field"><label for="speedInput">속도 (km/h)</label><input id="speedInput" type="number" min="0.1" step="0.1" value="12"></div>`;$('calculatorInputs').innerHTML=html;$('calculatorInputs').querySelectorAll('input').forEach(el=>el.addEventListener('input',calculate));calculate();}
