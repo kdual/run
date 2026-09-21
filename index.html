@@ -1,543 +1,154 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RUN INTEL — 러닝 환경 인텔리전스 & 페이스 계산기</title>
-  <meta name="description" content="실시간 날씨와 대기질을 분석한 러닝 환경 적합도(Running Score) 및 정밀 페이스 계산기">
-  <meta name="theme-color" content="#0f172a">
-  
-  <!-- PWA & Mobile Web App -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-
-  <!-- Preconnect & Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-
-  <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/responsive.css">
-
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b6bcb">
+  <meta name="description" content="날씨 기반 러닝 추천과 목표 페이스 계산을 한곳에서 확인하는 개인 러닝 대시보드">
+  <title>RUNWISE — Running Dashboard</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
-  <!-- Offline / Stale Data Banner -->
-  <aside id="cacheBanner" class="cache-banner hidden" role="status" aria-live="polite">
-    <span class="cache-icon">⚠️</span>
-    <span id="cacheBannerText">오프라인 모드: 마지막 저장된 날씨 데이터를 표시 중입니다.</span>
-  </aside>
-
-  <!-- Global Header -->
-  <header class="app-header">
-    <div class="header-container">
-      <div class="brand-area">
-        <h1 class="logo">
-          <span class="logo-accent">RUN</span> INTEL
-        </h1>
-        <div class="location-badge" id="btnOpenLocation" role="button" tabindex="0" aria-label="지역 변경">
-          <span class="loc-icon">📍</span>
-          <span id="currentLocationName">서울 송파구</span>
-          <span class="loc-edit-hint">변경</span>
-        </div>
+  <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#top" aria-label="RUNWISE 홈"><span class="brand-mark">R</span><span>RUNWISE</span></a>
+      <div class="header-meta">
+        <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog">📍 <span id="headerLocation">서울 송파구</span></button>
+        <span id="headerClock" class="clock" aria-live="off"></span>
       </div>
-
-      <div class="meta-controls">
-        <div class="time-meta">
-          <span id="currentDateDisplay" class="date-text">--월 --일 (-)</span>
-          <span id="updateTimeDisplay" class="update-text">업데이트: --:--</span>
-        </div>
-        <div class="actions">
-          <button id="btnRefresh" class="icon-btn" aria-label="날씨 새로고침" title="새로고침">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-            </svg>
-          </button>
-          <button id="btnThemeToggle" class="icon-btn" aria-label="다크 모드 전환" title="다크 모드 전환">
-            <span id="themeIcon">🌙</span>
-          </button>
-        </div>
+      <div class="header-actions">
+        <button id="refreshButton" class="icon-button" type="button" aria-label="날씨 새로고침" title="새로고침">↻</button>
+        <button id="themeButton" class="icon-button" type="button" aria-label="다크 모드 전환" title="화면 모드">◐</button>
       </div>
     </div>
   </header>
 
-  <!-- Main Content Container -->
-  <main class="dashboard-main" id="dashboardContent">
+  <main id="main" class="dashboard" tabindex="-1">
+    <div id="offlineBanner" class="offline-banner" hidden>오프라인입니다. 마지막 저장 데이터를 표시합니다.</div>
+    <div id="errorBanner" class="error-banner" role="alert" hidden></div>
 
-    <!-- SECTION 1: RUN NOW? (Hero Decision Card) -->
-    <section class="card run-now-card" id="runNowCard" aria-labelledby="runNowTitle">
-      <div class="run-now-header">
-        <span class="eyebrow-tag">QUICK DECISION</span>
-        <h2 id="runNowTitle" class="section-title">RUN NOW? 지금 뛰어도 될까?</h2>
+    <section id="top" class="hero card" aria-labelledby="runNowTitle">
+      <div class="hero-main">
+        <p class="eyebrow">RUN NOW?</p>
+        <h1 id="runNowTitle">지금 뛰어도 될까?</h1>
+        <div class="score-lockup">
+          <strong id="currentScore" class="score-number skeleton-text">--</strong><span>점</span>
+          <span id="currentGrade" class="grade-pill">분석 중</span>
+        </div>
+        <p id="runNowMessage" class="hero-message">현재 러닝 환경을 분석하고 있습니다.</p>
+        <p id="scoreDisclaimer" class="fine-print">Running Score는 의학적 기준이 아닌 러닝 환경 참고지수입니다.</p>
       </div>
-
-      <div class="run-now-body">
-        <div class="score-display">
-          <div class="score-circle" id="runNowCircle">
-            <span class="score-number" id="runNowScore">--</span>
-            <span class="score-unit">/ 100</span>
-          </div>
-          <div class="score-info">
-            <div class="badge-wrapper">
-              <span class="grade-badge" id="runNowGradeBadge">확인 중</span>
-              <span class="time-badge" id="sunsetStatusBadge">주간</span>
-            </div>
-            <p class="decision-phrase" id="runNowDecision">데이터를 불러오는 중입니다...</p>
-          </div>
-        </div>
-
-        <div class="run-now-stats">
-          <div class="stat-pill">
-            <span class="stat-label">현재 기온</span>
-            <span class="stat-value tabular" id="quickTemp">--°C</span>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-label">체감 온도</span>
-            <span class="stat-value tabular" id="quickApparentTemp">--°C</span>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-label">습도</span>
-            <span class="stat-value tabular" id="quickHumidity">--%</span>
-          </div>
-          <div class="stat-pill highlight">
-            <span class="stat-label">이슬점 (핵심)</span>
-            <span class="stat-value tabular" id="quickDewPoint">--°C</span>
-          </div>
-        </div>
-
-        <div class="run-now-comparison">
-          <div class="comp-col">
-            <span class="comp-label">현재 스코어</span>
-            <span class="comp-val tabular" id="compCurrentScore">--점</span>
-          </div>
-          <div class="comp-divider">vs</div>
-          <div class="comp-col">
-            <span class="comp-label">오늘 최고 스코어</span>
-            <span class="comp-val tabular highlight" id="compMaxScore">--점</span>
-          </div>
-          <div class="comp-col best-time-col">
-            <span class="comp-label">오늘 BEST TIME</span>
-            <span class="comp-val time-val" id="compBestTime">--:-- ~ --:--</span>
-          </div>
-        </div>
+      <div class="hero-side">
+        <div class="hero-weather"><span>현재</span><strong id="heroTemp">--°</strong></div>
+        <div class="hero-weather"><span>체감</span><strong id="heroFeels">--°</strong></div>
+        <div class="hero-weather"><span>습도</span><strong id="heroHumidity">--%</strong></div>
+        <div class="hero-weather"><span>이슬점</span><strong id="heroDew">--°</strong></div>
+        <div class="best-now"><span>오늘 최고</span><strong id="todayBestScore">--점</strong><small id="todayBestTime">BEST TIME --:--</small></div>
       </div>
     </section>
 
-    <!-- TOP ROW: Best Times & Sunset / Sunrise -->
-    <div class="grid-two-col">
-      <!-- SECTION 2 & 3: Best Running Times TOP 3 -->
-      <section class="card best-times-card" aria-labelledby="bestTimesTitle">
-        <div class="card-header">
-          <h2 id="bestTimesTitle" class="card-title">🥇 오늘 러닝 BEST TIME TOP 3</h2>
-          <span class="card-subtitle">연속적인 기상 적합도 기준 추천</span>
+    <section class="dashboard-grid primary-grid" aria-label="오늘 요약">
+      <article class="card">
+        <div class="section-heading"><div><p class="eyebrow">TODAY</p><h2>오늘의 러닝 점수</h2></div><span id="updatedAt" class="updated">업데이트 대기</span></div>
+        <div class="ring-wrap">
+          <div id="scoreRing" class="score-ring" aria-label="오늘 대표 러닝 점수"><strong id="todayScore">--</strong><span>/ 100</span></div>
+          <div><strong id="todayGrade">분석 중</strong><p id="todaySummary" class="muted">시간대별 조건을 확인하고 있습니다.</p></div>
         </div>
-        <div class="best-times-list" id="bestTimesList">
-          <div class="loading-placeholder">시간대 분석 중...</div>
-        </div>
-      </section>
+      </article>
 
-      <!-- SECTION 16: Sun Position & Running Environment -->
-      <section class="card sun-card" aria-labelledby="sunCardTitle">
-        <div class="card-header">
-          <h2 id="sunCardTitle" class="card-title">☀️ 일출 · 일몰 & 야간 러닝</h2>
-          <span class="card-subtitle" id="sunRemainingText">일몰 정보 계산 중</span>
-        </div>
-        <div class="sun-times-grid">
-          <div class="sun-box">
-            <span class="sun-icon">🌅</span>
-            <div class="sun-detail">
-              <span class="sun-label">일출 (Sunrise)</span>
-              <span class="sun-val tabular" id="sunriseTime">--:--</span>
-            </div>
-          </div>
-          <div class="sun-box">
-            <span class="sun-icon">🌇</span>
-            <div class="sun-detail">
-              <span class="sun-label">일몰 (Sunset)</span>
-              <span class="sun-val tabular" id="sunsetTime">--:--</span>
-            </div>
-          </div>
-        </div>
-        <div class="night-run-tip" id="nightRunNotice">
-          야간 러닝 시 차량 시야 확보를 위해 밝은 러닝웨어와 반사 장비를 착용하세요.
-        </div>
-      </section>
-    </div>
+      <article class="card">
+        <div class="section-heading"><div><p class="eyebrow">BEST TIME</p><h2>오늘 추천 시간 TOP 3</h2></div></div>
+        <ol id="bestTimes" class="best-list" aria-live="polite">
+          <li class="skeleton-row"></li><li class="skeleton-row"></li><li class="skeleton-row"></li>
+        </ol>
+      </article>
 
-    <!-- SECTION 4: Current Weather Grid -->
-    <section class="card current-weather-card" aria-labelledby="currentWeatherTitle">
-      <div class="card-header">
-        <h2 id="currentWeatherTitle" class="card-title">📊 현재 상세 기상 및 대기질 데이터</h2>
-        <span class="card-subtitle">Open-Meteo & Air Quality 실측 데이터</span>
-      </div>
-
-      <div class="weather-grid" id="weatherGrid">
-        <div class="weather-box">
-          <span class="w-label">기온</span>
-          <span class="w-val tabular" id="gridTemp">--°C</span>
-          <span class="w-sub" id="gridApparent">체감 --°C</span>
-        </div>
-        <div class="weather-box highlight-box">
-          <span class="w-label">이슬점 (Dew Point)</span>
-          <span class="w-val tabular" id="gridDewPoint">--°C</span>
-          <span class="w-sub" id="gridDewPointDesc">땀 증발 지수</span>
-        </div>
-        <div class="weather-box">
-          <span class="w-label">상대 습도</span>
-          <span class="w-val tabular" id="gridHumidity">--%</span>
-          <span class="w-sub">최적 40~60%</span>
-        </div>
-        <div class="weather-box">
-          <span class="w-label">강수 확률 · 강수량</span>
-          <span class="w-val tabular" id="gridPrecip">--% / -mm</span>
-          <span class="w-sub" id="gridWeatherCode">맑음</span>
-        </div>
-        <div class="weather-box">
-          <span class="w-label">풍속 · 돌풍</span>
-          <span class="w-val tabular" id="gridWind">-- km/h</span>
-          <span class="w-sub" id="gridWindSub">--풍 (돌풍 --)</span>
-        </div>
-        <div class="weather-box">
-          <span class="w-label">초미세먼지 (PM2.5)</span>
-          <span class="w-val tabular" id="gridPm25">-- ㎍/㎥</span>
-          <span class="w-sub aqi-badge" id="gridPm25Grade">확인 중</span>
-        </div>
-        <div class="weather-box">
-          <span class="w-label">미세먼지 (PM10)</span>
-          <span class="w-val tabular" id="gridPm10">-- ㎍/㎥</span>
-          <span class="w-sub aqi-badge" id="gridPm10Grade">확인 중</span>
-        </div>
-        <div class="weather-box">
-          <span class="w-label">자외선 지수 (UV)</span>
-          <span class="w-val tabular" id="gridUv">--</span>
-          <span class="w-sub" id="gridUvDesc">낮음</span>
-        </div>
-      </div>
+      <article class="card current-card">
+        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2></div><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div>
+        <div id="weatherMetrics" class="metric-grid"></div>
+        <div class="sun-row"><span>☀ 일출 <strong id="sunrise">--:--</strong></span><span>◐ 일몰 <strong id="sunset">--:--</strong></span></div>
+        <p id="sunStatus" class="muted"></p>
+      </article>
     </section>
 
-    <!-- SECTION 5: Hourly Running Score & Chart -->
-    <section class="card hourly-score-card" aria-labelledby="hourlyScoreTitle">
-      <div class="card-header-flex">
-        <div>
-          <h2 id="hourlyScoreTitle" class="card-title">📈 시간대별 Running Score 추이</h2>
-          <span class="card-subtitle">그래프의 지점을 클릭하면 해당 시간대의 세부 기상이 표시됩니다.</span>
-        </div>
-        <div class="tab-group" role="tablist" aria-label="시간대 필터">
-          <button class="tab-btn active" id="btnHourlyToday" role="tab" aria-selected="true">오늘 (Today)</button>
-          <button class="tab-btn" id="btnHourlyTomorrow" role="tab" aria-selected="false">내일 (Tomorrow)</button>
-        </div>
-      </div>
-
-      <div class="chart-container">
-        <canvas id="hourlyChartCanvas" height="220" aria-label="시간대별 러닝 스코어 그래프" role="img"></canvas>
-      </div>
-
-      <!-- Selected Hour Detail Box -->
-      <div class="selected-hour-box" id="selectedHourDetail" style="display: none;">
-        <div class="detail-header">
-          <span class="detail-title" id="selHourTitle">--:00 상세 분석</span>
-          <span class="grade-badge" id="selHourBadge">좋음</span>
-        </div>
-        <div class="detail-grid" id="selHourGrid">
-          <!-- Populated via JS -->
-        </div>
-      </div>
+    <section class="card wide-section" aria-labelledby="hourlyTitle">
+      <div class="section-heading"><div><p class="eyebrow">HOURLY</p><h2 id="hourlyTitle">시간대별 Running Score</h2></div><div class="segmented"><button class="active" data-hourly-day="0">오늘</button><button data-hourly-day="1">내일</button></div></div>
+      <div id="hourlyChart" class="chart" role="img" aria-label="시간대별 러닝 점수 선 그래프"></div>
+      <div id="hourlyDetail" class="hourly-detail" aria-live="polite">그래프의 시간대를 선택하면 세부 조건을 확인할 수 있습니다.</div>
+      <div id="hourlyTextAlternative" class="sr-only"></div>
     </section>
 
-    <!-- SECTION 6 & 7: Today vs Tomorrow & Weekly Forecast -->
-    <div class="grid-two-col">
-      <!-- SECTION 6: Today vs Tomorrow -->
-      <section class="card comp-card" aria-labelledby="compTitle">
-        <div class="card-header">
-          <h2 id="compTitle" class="card-title">⚖️ 오늘 vs 내일 러닝 여건 비교</h2>
-          <span class="card-subtitle">기온, 강수, 이슬점 종합 분석</span>
-        </div>
-        <div class="day-comp-grid">
-          <div class="day-comp-box" id="compBoxToday">
-            <span class="day-tag">TODAY</span>
-            <div class="day-score tabular" id="todayAvgScore">--</div>
-            <span class="grade-badge" id="todayAvgGrade">--</span>
-            <div class="day-stats" id="todayCompStats">최고 --°C | 비 --%</div>
-          </div>
-          <div class="day-comp-box" id="compBoxTomorrow">
-            <span class="day-tag">TOMORROW</span>
-            <div class="day-score tabular" id="tomorrowAvgScore">--</div>
-            <span class="grade-badge" id="tomorrowAvgGrade">--</span>
-            <div class="day-stats" id="tomorrowCompStats">최고 --°C | 비 --%</div>
-          </div>
-        </div>
-        <div class="comp-commentary" id="compCommentaryText">
-          오늘과 내일의 비교 데이터를 분석 중입니다.
-        </div>
-      </section>
-
-      <!-- SECTION 7: Weekly Running Forecast -->
-      <section class="card weekly-card" aria-labelledby="weeklyTitle">
-        <div class="card-header">
-          <h2 id="weeklyTitle" class="card-title">📅 주간 7일 러닝 날씨 예보</h2>
-          <span class="card-subtitle">이번 주 러닝 스케줄링 가이드</span>
-        </div>
-        <div class="weekly-list" id="weeklyForecastList">
-          <div class="loading-placeholder">7일 예보 산출 중...</div>
-        </div>
-      </section>
-    </div>
-
-    <!-- SECTION 8: Workout Recommendation -->
-    <section class="card workout-card" aria-labelledby="workoutTitle">
-      <div class="card-header">
-        <h2 id="workoutTitle" class="card-title">🏃 훈련 종류별 적합도 (Workout Modes)</h2>
-        <span class="card-subtitle">현재 기온, 습도, 이슬점에 따른 운동 강도별 최적성 평가</span>
-      </div>
-      <div class="workout-grid" id="workoutGrid">
-        <!-- Rendered via JS -->
-      </div>
+    <section class="dashboard-grid split-grid">
+      <article class="card">
+        <div class="section-heading"><div><p class="eyebrow">COMPARE</p><h2>오늘 vs 내일</h2></div></div>
+        <div class="compare-grid"><div><span>TODAY</span><strong id="compareToday">--</strong><small id="compareTodayGrade">분석 중</small></div><div class="compare-divider">VS</div><div><span>TOMORROW</span><strong id="compareTomorrow">--</strong><small id="compareTomorrowGrade">분석 중</small></div></div>
+        <p id="comparisonMessage" class="coach-copy">데이터를 불러오는 중입니다.</p>
+      </article>
+      <article class="card">
+        <div class="section-heading"><div><p class="eyebrow">COACH</p><h2>러닝 코치</h2></div><span class="rule-badge">RULE-BASED</span></div>
+        <p id="coachMessage" class="coach-copy">현재 조건을 분석하고 있습니다.</p>
+        <div id="alerts" class="alert-list"></div>
+      </article>
     </section>
 
-    <!-- SECTION 9 & 10: Running Coach & Gear Advice -->
-    <div class="grid-two-col">
-      <!-- SECTION 9: Running Coach -->
-      <section class="card coach-card" aria-labelledby="coachTitle">
-        <div class="card-header">
-          <h2 id="coachTitle" class="card-title">💬 러닝 코치 브리핑</h2>
-          <span class="card-subtitle">룰 기반 러닝 인텔리전스 어드바이스</span>
-        </div>
-        <div class="coach-bubble" id="coachMessage">
-          기상 데이터를 바탕으로 최적의 러닝 조언을 분석 중입니다.
-        </div>
-
-        <div class="environmental-warnings" id="warningContainer">
-          <!-- Warnings populated via JS -->
-        </div>
-      </section>
-
-      <!-- SECTION 10: Gear Recommendation -->
-      <section class="card gear-card" aria-labelledby="gearTitle">
-        <div class="card-header">
-          <h2 id="gearTitle" class="card-title">🎽 맞춤 러닝 복장 가이드</h2>
-          <span class="card-subtitle">체감 온도와 바람, 강수 대비 추천</span>
-        </div>
-        <div class="gear-list">
-          <div class="gear-item">
-            <span class="gear-cat">상의</span>
-            <span class="gear-val" id="gearTop">--</span>
-          </div>
-          <div class="gear-item">
-            <span class="gear-cat">하의</span>
-            <span class="gear-val" id="gearBottom">--</span>
-          </div>
-          <div class="gear-item">
-            <span class="gear-cat">추가 / 소품</span>
-            <span class="gear-val" id="gearAccessories">--</span>
-          </div>
-        </div>
-        <p class="gear-disclaimer" id="gearDisclaimer">
-          ※ 러닝 시작 후 체온 상승을 고려하여 쌀쌀한 느낌으로 출발하는 것이 좋습니다.
-        </p>
-      </section>
-    </div>
-
-    <!-- SECTION 11: Pace Calculator -->
-    <section class="card pace-card" id="paceCalcSection" aria-labelledby="paceTitle">
-      <div class="card-header">
-        <h2 id="paceTitle" class="card-title">⏱️ 러닝 페이스 & 속도 계산기</h2>
-        <span class="card-subtitle">목표 기록 달성을 위한 필요 페이스 및 거리별 예상 완주시간 산출</span>
-      </div>
-
-      <!-- Mode Selector Tabs -->
-      <div class="pace-tabs" role="tablist">
-        <button class="pace-tab-btn active" id="tabModeA" role="tab" aria-selected="true">A. 거리 + 목표 기록</button>
-        <button class="pace-tab-btn" id="tabModeB" role="tab" aria-selected="false">B. 페이스 입력</button>
-        <button class="pace-tab-btn" id="tabModeC" role="tab" aria-selected="false">C. 시속(Speed) 입력</button>
-      </div>
-
-      <!-- Mode A Inputs: Distance + Time -->
-      <div class="calc-panel" id="panelModeA">
-        <div class="input-grid">
-          <div class="form-group">
-            <label for="selectDistanceA">목표 거리</label>
-            <select id="selectDistanceA" class="form-control">
-              <option value="0.4">400m</option>
-              <option value="0.8">800m</option>
-              <option value="1">1 km</option>
-              <option value="3">3 km</option>
-              <option value="5" selected>5 km</option>
-              <option value="10">10 km</option>
-              <option value="21.0975">하프 마라톤 (21.0975 km)</option>
-              <option value="42.195">풀 마라톤 (42.195 km)</option>
-              <option value="custom">사용자 지정 거리...</option>
-            </select>
-          </div>
-          <div class="form-group" id="customDistGroupA" style="display: none;">
-            <label for="inputCustomDistA">지정 거리 (km)</label>
-            <input type="number" id="inputCustomDistA" class="form-control tabular" placeholder="예: 7.5" step="0.1" min="0.1">
-          </div>
-          <div class="form-group">
-            <label>목표 기록 (시 : 분 : 초)</label>
-            <div class="time-input-row">
-              <input type="number" id="timeHoursA" class="form-control tabular" placeholder="00" min="0" max="24" value="0">
-              <span class="sep">:</span>
-              <input type="number" id="timeMinutesA" class="form-control tabular" placeholder="25" min="0" max="59" value="25">
-              <span class="sep">:</span>
-              <input type="number" id="timeSecondsA" class="form-control tabular" placeholder="00" min="0" max="59" value="0">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mode B Inputs: Pace -->
-      <div class="calc-panel" id="panelModeB" style="display: none;">
-        <div class="input-grid">
-          <div class="form-group">
-            <label>달릴 페이스 (분 : 초 / km)</label>
-            <div class="time-input-row">
-              <input type="number" id="paceMinB" class="form-control tabular" placeholder="5" min="2" max="15" value="5">
-              <span class="sep">:</span>
-              <input type="number" id="paceSecB" class="form-control tabular" placeholder="00" min="0" max="59" value="0">
-              <span class="unit-label">/km</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mode C Inputs: Speed -->
-      <div class="calc-panel" id="panelModeC" style="display: none;">
-        <div class="input-grid">
-          <div class="form-group">
-            <label for="speedInputC">달릴 속도 (km/h)</label>
-            <div class="time-input-row">
-              <input type="number" id="speedInputC" class="form-control tabular" placeholder="12.0" step="0.1" min="3" max="30" value="12.0">
-              <span class="unit-label">km/h</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Primary Output Highlight -->
-      <div class="calc-primary-results">
-        <div class="res-box">
-          <span class="res-label">필요 / 환산 페이스</span>
-          <span class="res-val tabular highlight" id="calcResultPace">5:00</span>
-          <span class="res-unit">/km</span>
-        </div>
-        <div class="res-box">
-          <span class="res-label">환산 속도</span>
-          <span class="res-val tabular" id="calcResultSpeed">12.00</span>
-          <span class="res-unit">km/h</span>
-        </div>
-      </div>
-
-      <!-- Standard Splits & Distances Output Table -->
-      <div class="splits-container">
-        <h3 class="splits-title">거리별 예상 완주시간</h3>
-        <div class="splits-grid" id="calcSplitsGrid">
-          <!-- Populated via JS -->
-        </div>
-      </div>
+    <section class="card wide-section" aria-labelledby="weeklyTitle">
+      <div class="section-heading"><div><p class="eyebrow">7-DAY</p><h2 id="weeklyTitle">이번 주 러닝 날씨</h2></div></div>
+      <div id="weeklyCards" class="weekly-grid"></div>
+      <div id="selectedDayDetail" class="selected-day-detail"></div>
     </section>
 
-    <!-- SECTION 12: Interactive Pace Table -->
-    <section class="card pace-table-card" aria-labelledby="paceTableTitle">
-      <div class="card-header-flex">
-        <div>
-          <h2 id="paceTableTitle" class="card-title">📑 페이스별 완주 기록 환산표 (Pace Table)</h2>
-          <span class="card-subtitle">3:30/km ~ 7:00/km 구간별 속도 및 마라톤 기록 환산</span>
-        </div>
-        <div class="table-range-filter">
-          <label for="tableStepSelect">단위:</label>
-          <select id="tableStepSelect" class="form-control-sm">
-            <option value="5">5초 간격</option>
-            <option value="10" selected>10초 간격</option>
-            <option value="15">15초 간격</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="pace-table" id="fullPaceTable">
-          <thead>
-            <tr>
-              <th scope="col">페이스 (/km)</th>
-              <th scope="col">시속 (km/h)</th>
-              <th scope="col">5K</th>
-              <th scope="col">10K</th>
-              <th scope="col">하프 (21.0975km)</th>
-              <th scope="col">풀 (42.195km)</th>
-            </tr>
-          </thead>
-          <tbody id="paceTableBody">
-            <!-- Populated via JS -->
-          </tbody>
-        </table>
-      </div>
+    <section class="dashboard-grid split-grid">
+      <article class="card">
+        <div class="section-heading"><div><p class="eyebrow">WORKOUT</p><h2>추천 훈련</h2></div></div>
+        <div id="workoutScores" class="workout-list"></div>
+      </article>
+      <article class="card">
+        <div class="section-heading"><div><p class="eyebrow">GEAR</p><h2>복장 · 환경 안내</h2></div></div>
+        <div id="gearAdvice" class="gear-grid"></div>
+        <p class="fine-print">복장 추천은 개인의 체감과 운동 강도에 따라 달라질 수 있습니다.</p>
+      </article>
     </section>
 
+    <section id="pace" class="card wide-section" aria-labelledby="paceTitle">
+      <div class="section-heading"><div><p class="eyebrow">PACE LAB</p><h2 id="paceTitle">목표 페이스 계산기</h2></div></div>
+      <div class="calculator-tabs" role="tablist" aria-label="계산 방식">
+        <button class="active" role="tab" aria-selected="true" data-calc-mode="goal">거리 + 목표 기록</button>
+        <button role="tab" aria-selected="false" data-calc-mode="pace">페이스 입력</button>
+        <button role="tab" aria-selected="false" data-calc-mode="speed">속도 입력</button>
+      </div>
+      <div id="calculatorInputs" class="calculator-inputs"></div>
+      <div class="calculator-results">
+        <div><span>필요 페이스</span><strong id="resultPace">--:--/km</strong></div>
+        <div><span>필요 속도</span><strong id="resultSpeed">-- km/h</strong></div>
+      </div>
+      <div id="splitResults" class="split-results"></div>
+      <p id="calculatorError" class="field-error" role="alert"></p>
+    </section>
+
+    <section class="card wide-section" aria-labelledby="tableTitle">
+      <div class="section-heading"><div><p class="eyebrow">REFERENCE</p><h2 id="tableTitle">페이스별 예상 기록</h2></div>
+        <div class="pace-range"><label>시작 <input id="paceStart" type="time" step="10" value="00:03:30" aria-label="표 시작 페이스"></label><label>끝 <input id="paceEnd" type="time" step="10" value="00:07:00" aria-label="표 끝 페이스"></label></div>
+      </div>
+      <div class="table-scroll"><table><thead><tr><th>페이스</th><th>km/h</th><th>5K</th><th>10K</th><th>Half</th><th>Marathon</th></tr></thead><tbody id="paceTableBody"></tbody></table></div>
+    </section>
   </main>
 
-  <!-- Location Search Modal -->
-  <dialog id="locationModal" class="location-modal" aria-labelledby="locModalTitle">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="locModalTitle" class="modal-title">📍 위치 설정</h3>
-        <button id="btnCloseLocationModal" class="close-btn" aria-label="닫기">✕</button>
-      </div>
-      <div class="modal-body">
-        <button id="btnUseGeolocation" class="btn btn-primary full-width">
-          <span class="btn-icon">🎯</span> 현재 GPS 위치 사용
-        </button>
-        <div class="modal-divider"><span>또는 지역명 검색</span></div>
-        <div class="search-input-group">
-          <input type="text" id="inputLocationSearch" class="form-control" placeholder="예: 송파구, 마포구, 해운대, 제천..." autocomplete="off">
-          <button id="btnSearchLocation" class="btn btn-secondary">검색</button>
-        </div>
-        <div class="search-results-list" id="locationSearchResults" role="listbox"></div>
-      </div>
-    </div>
+  <footer><p>Weather data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open‑Meteo</a> · Air quality data: Open‑Meteo / CAMS</p><p>RUNWISE · 개인용 러닝 환경 참고 대시보드</p></footer>
+
+  <dialog id="locationDialog">
+    <form method="dialog" class="dialog-card"><div class="dialog-heading"><h2>지역 설정</h2><button value="cancel" aria-label="닫기">×</button></div>
+      <p class="muted">현재 위치를 사용하거나 지역명을 검색하세요.</p>
+      <button id="useMyLocation" class="primary-button" type="button">현재 위치 사용</button>
+      <div class="search-row"><label class="sr-only" for="locationSearch">지역명</label><input id="locationSearch" placeholder="예: 송파구, 부산, Tokyo" autocomplete="off"><button id="searchLocation" type="button">검색</button></div>
+      <div id="locationResults" class="location-results" role="listbox"></div>
+      <p id="locationError" class="field-error" role="alert"></p>
+    </form>
   </dialog>
 
-  <!-- Global Footer -->
-  <footer class="app-footer">
-    <div class="footer-content">
-      <p class="footer-disclaimer">
-        ※ <strong>Running Score</strong>는 기상 데이터를 기반으로 산출된 환경 참고 지수이며 의학적 또는 절대적 신체 상태 기준이 아닙니다. 개인의 체력과 심박수에 맞춰 안전하게 달리세요.
-      </p>
-      <div class="footer-attribution">
-        <span>Weather Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo API</a> (CC BY 4.0)</span>
-        <span class="sep">•</span>
-        <span>Air Quality: <a href="https://open-meteo.com/en/docs/air-quality-api" target="_blank" rel="noopener noreferrer">Copernicus CAMS / Open-Meteo</a></span>
-      </div>
-      <p class="footer-copy">
-        RUN INTEL Dashboard — Serverless Static Web App on GitHub Pages
-      </p>
-    </div>
-  </footer>
-
-  <!-- Application Scripts (Loaded in dependency order) -->
-  <script src="config/running-score-config.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/weather.js"></script>
-  <script src="js/air-quality.js"></script>
-  <script src="js/running-score.js"></script>
-  <script src="js/running-coach.js"></script>
-  <script src="js/pace-calculator.js"></script>
-  <script src="js/charts.js"></script>
-  <script src="js/app.js"></script>
-
-  <!-- Service Worker Registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js').catch(err => {
-          console.warn('Service worker registration failed:', err);
-        });
-      });
-    }
-  </script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
