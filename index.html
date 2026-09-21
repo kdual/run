@@ -8,8 +8,8 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=11">
-  <link rel="stylesheet" href="./responsive.css?v=11">
+  <link rel="stylesheet" href="./styles.css?v=12">
+  <link rel="stylesheet" href="./responsive.css?v=12">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
 <body>
@@ -79,6 +79,7 @@
     <section class="card wide-section" aria-labelledby="hourlyTitle">
       <div class="section-heading hourly-heading"><div><p class="eyebrow">HOURLY</p><h2 id="hourlyTitle">시간대별 Running Score</h2><p class="chart-hint">점 위에 마우스를 올리거나 선택하면 해당 시간의 세부 조건을 확인할 수 있습니다.</p></div><div class="segmented"><button class="active" data-hourly-day="0">오늘</button><button data-hourly-day="1">내일</button></div></div>
       <div id="hourlyChart" class="chart" role="img" aria-label="시간대별 러닝 점수 선 그래프"></div>
+      <button id="hourlyNextDay" class="chart-next-day" type="button" hidden>내일 00:00 이후 시간대 보기 <span aria-hidden="true">→</span></button>
       <div id="hourlyDetail" class="hourly-detail" aria-live="polite">그래프의 시간대를 선택하면 세부 조건을 확인할 수 있습니다.</div>
       <div id="hourlyTextAlternative" class="sr-only"></div>
     </section>
@@ -149,6 +150,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=12"></script>
+  <script type="module" src="./app.js?v=13"></script>
 </body>
 </html>
