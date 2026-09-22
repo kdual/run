@@ -1,6 +1,6 @@
 import { APP_CONFIG } from './running-score-config.js?v=14';
-import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=15';
-import { fetchAirQuality } from './air-quality.js?v=15';
+import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=16';
+import { fetchAirQuality } from './air-quality.js?v=16';
 import { getStored, setStored, getCache, setCache } from './storage.js?v=15';
 import { currentConditions, dailyScore, findBestRunningTimes, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=14';
 import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=14';
@@ -101,11 +101,15 @@ function previewLocation(loc,button){
   $('locationResults').querySelectorAll('.location-result').forEach(item=>item.classList.toggle('selected',item===button));
   $('locationError').textContent=`${loc.address||loc.name} 위치를 확인한 뒤 사용 버튼을 눌러주세요.`;
 }
-function chooseLocation(loc){state.location=loc;state.selectedLocation=null;setStored('location',loc);$('locationConfirm').hidden=true;$('locationDialog').close();loadData(true);}
+async function chooseLocation(loc){
+  $('locationConfirm').disabled=true;$('locationError').textContent='행정구역과 가까운 대기 측정소를 확인하고 있습니다…';
+  try{state.location=await ensureAreaCode(loc);}catch{state.location=loc;}
+  state.selectedLocation=null;setStored('location',state.location);$('locationConfirm').hidden=true;$('locationConfirm').disabled=false;$('locationDialog').close();loadData(true);
+}
 function locate(){if(!navigator.geolocation){$('locationError').textContent='이 브라우저는 위치 기능을 지원하지 않습니다.';return;}$('locationError').textContent='현재 위치와 주소를 확인하고 있습니다…';navigator.geolocation.getCurrentPosition(async pos=>{const latitude=round(pos.coords.latitude,6),longitude=round(pos.coords.longitude,6);try{chooseLocation(await reverseGeocode(latitude,longitude));}catch{chooseLocation({name:'현재 위치',address:'현재 위치',region1:'',region2:'',latitude,longitude});}},()=>{$('locationError').textContent='위치 권한이 거부되었거나 위치를 확인할 수 없습니다. 지역 검색을 이용해 주세요.';},{timeout:15000,maximumAge:300000,enableHighAccuracy:true});}
 async function search(){const q=$('locationSearch').value.trim();if(q.length<2){$('locationError').textContent='주소나 장소명을 두 글자 이상 입력해 주세요.';return;}try{$('locationError').textContent='카카오에서 검색 중…';state.selectedLocation=null;$('locationConfirm').hidden=true;const results=await searchLocations(q);$('locationError').textContent=results.length?'검색 결과를 선택하면 지도에서 위치를 확인할 수 있습니다.':'검색 결과가 없습니다.';$('locationResults').innerHTML=results.map((r,i)=>`<button type="button" class="location-result" data-index="${i}" role="option"><strong>${escapeHtml(r.name)}</strong><small>${escapeHtml([r.category,r.roadAddress||r.address].filter(Boolean).join(' · '))}</small></button>`).join('');$('locationResults').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{const r=results[Number(b.dataset.index)];previewLocation({name:r.name,address:r.address,roadAddress:r.roadAddress,region1:r.region1,region2:r.region2,region3:r.region3,areaNo:r.areaNo,latitude:r.latitude,longitude:r.longitude},b);}));if(results[0])previewLocation(results[0],$('locationResults').querySelector('button'));}catch(e){$('locationError').textContent=e.message;}}
 
 $('locationButton').addEventListener('click',()=>{$('locationDialog').showModal();setTimeout(()=>{initLocationMap();state.map?.relayout();showLocationOnMap(state.location);$('locationSearch').focus();},0);});$('locationConfirm').addEventListener('click',()=>{if(state.selectedLocation)chooseLocation(state.selectedLocation);});$('useMyLocation').addEventListener('click',locate);$('searchLocation').addEventListener('click',search);$('locationSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();search();}});$('refreshButton').addEventListener('click',()=>loadData(true));$('themeButton').addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));document.querySelectorAll('[data-hourly-day]').forEach((b,i)=>b.addEventListener('click',()=>{state.hourlyDay=i;renderHourly();}));$('hourlyNextDay').addEventListener('click',()=>{state.hourlyDay=1;renderHourly();});document.querySelectorAll('[data-calc-mode]').forEach(b=>b.addEventListener('click',()=>{state.calcMode=b.dataset.calcMode;document.querySelectorAll('[data-calc-mode]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-selected',x===b);});calculatorTemplate();}));addEventListener('online',()=>{$('offlineBanner').hidden=true;loadData();});addEventListener('offline',()=>{$('offlineBanner').hidden=false;});
 
 calculatorTemplate();renderPaceTable();loadData();
-if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=16',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});

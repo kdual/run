@@ -38,6 +38,19 @@ function addressSearch(query) {
   });
 }
 
+function regionCodeSearch(latitude, longitude) {
+  return new Promise((resolve, reject) => {
+    const services = kakaoServices();
+    new services.Geocoder().coord2RegionCode(longitude, latitude, (results, status) => {
+      if (status !== services.Status.OK || !results?.length) {
+        reject(new Error('현재 위치의 행정구역코드를 확인하지 못했습니다.'));
+        return;
+      }
+      resolve(results.find(item => item.region_type === 'H') || results[0]);
+    });
+  });
+}
+
 const splitAddress = value => {
   const parts = String(value || '').trim().split(/\s+/);
   return { region1: parts[0] || '', region2: parts[1] || '', region3: parts[2] || '' };
@@ -77,7 +90,7 @@ export async function searchLocations(query) {
 }
 
 export function reverseGeocode(latitude, longitude) {
-  return new Promise((resolve, reject) => {
+  const addressPromise = new Promise((resolve, reject) => {
     const services = kakaoServices();
     new services.Geocoder().coord2Address(longitude, latitude, (results, status) => {
       if (status !== services.Status.OK || !results[0]) {
@@ -99,6 +112,19 @@ export function reverseGeocode(latitude, longitude) {
         areaNo: region.b_code || ''
       });
     });
+  });
+  return Promise.allSettled([addressPromise, regionCodeSearch(latitude, longitude)]).then(results => {
+    const address = results[0].status === 'fulfilled' ? results[0].value : null;
+    const region = results[1].status === 'fulfilled' ? results[1].value : null;
+    if (!address && !region) throw new Error('현재 위치의 주소를 확인하지 못했습니다.');
+    return {
+      ...(address || { latitude, longitude, address: '현재 위치', roadAddress: '' }),
+      name: address?.name || [region?.region_1depth_name, region?.region_2depth_name].filter(Boolean).join(' ') || '현재 위치',
+      region1: region?.region_1depth_name || address?.region1 || '',
+      region2: region?.region_2depth_name || address?.region2 || '',
+      region3: region?.region_3depth_name || address?.region3 || '',
+      areaNo: /^\d{10}$/.test(String(region?.code || '')) ? region.code : address?.areaNo || ''
+    };
   });
 }
 
