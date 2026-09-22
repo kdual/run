@@ -2,7 +2,8 @@ import { APP_CONFIG } from './running-score-config.js?v=14';
 export async function fetchAirQuality(location, signal) {
   const p = new URLSearchParams({
     sidoName: location.region1 || location.name?.split(' ')[0] || '서울',
-    stationName: location.region3 || location.region2 || ''
+    stationName: location.region3 || location.region2 || '',
+    districtName: location.region2 || ''
   });
   const url = `${APP_CONFIG.apiBaseUrl}/air?${p}`;
   let lastError;

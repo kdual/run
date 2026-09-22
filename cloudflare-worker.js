@@ -83,6 +83,7 @@ async function weatherRoute(url, env, headers) {
 async function airRoute(url, env, headers) {
   const sidoName = normalizeSido(url.searchParams.get('sidoName') || '서울');
   const stationName = String(url.searchParams.get('stationName') || '').trim();
+  const districtName = String(url.searchParams.get('districtName') || '').trim();
   const key = env.DATA_GO_KR_SERVICE_KEY;
 
   const currentUrl = dataGoUrl(`${AIR_BASE}/getCtprvnRltmMesureDnsty`, key, {
@@ -94,7 +95,7 @@ async function airRoute(url, env, headers) {
   ]);
   assertPublicData(currentData, '에어코리아 실시간 측정정보');
   const items = normalizeItems(currentData?.response?.body?.items);
-  const match = selectStation(items, stationName);
+  const match = selectStation(items, stationName, districtName);
   const selected = match.item;
 
   const dailyMap = new Map();
@@ -130,6 +131,7 @@ async function airRoute(url, env, headers) {
     source: '에어코리아 측정소 실측·대기질 예보',
     sido_name: sidoName,
     requested_station: stationName || null,
+    requested_district: districtName || null,
     station_match: match.type,
     current,
     daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date))
@@ -511,15 +513,25 @@ function normalizeSido(value) {
   const aliases = { 서울특별시: '서울', 부산광역시: '부산', 대구광역시: '대구', 인천광역시: '인천', 광주광역시: '광주', 대전광역시: '대전', 울산광역시: '울산', 세종특별자치시: '세종', 경기도: '경기', 강원특별자치도: '강원', 충청북도: '충북', 충청남도: '충남', 전북특별자치도: '전북', 전라북도: '전북', 전라남도: '전남', 경상북도: '경북', 경상남도: '경남', 제주특별자치도: '제주' };
   return aliases[value] || value.replace(/[특별광역자치도시]/g, '') || '서울';
 }
-function selectStation(items, requested) {
-  const clean = value => String(value || '').replace(/\s+/g, '').replace(/측정소$/, '');
+function selectStation(items, requested, district = '') {
+  const clean = value => String(value || '')
+    .replace(/\s+/g, '')
+    .replace(/측정소$/, '')
+    .replace(/[0-9·.\-]/g, '')
+    .replace(/본동$/, '동');
   const target = clean(requested);
   if (!items.length) return { item: null, type: 'none' };
   if (!target) return { item: items[0], type: 'sido-first' };
   const exact = items.find(item => clean(item.stationName) === target);
   if (exact) return { item: exact, type: 'exact' };
   const fuzzy = items.find(item => clean(item.stationName).includes(target) || target.includes(clean(item.stationName)));
-  return fuzzy ? { item: fuzzy, type: 'fuzzy' } : { item: null, type: 'none' };
+  if (fuzzy) return { item: fuzzy, type: 'fuzzy' };
+  const aliases = { 시흥시: ['정왕동', '대야동', '배곧동', '장현동', '목감동'] };
+  for (const alias of aliases[clean(district)] || []) {
+    const item = items.find(candidate => clean(candidate.stationName) === clean(alias));
+    if (item) return { item, type: 'district-fallback' };
+  }
+  return { item: null, type: 'none' };
 }
 function gradeForRegion(text, sido) {
   const target = normalizeSido(sido);
