@@ -3,7 +3,9 @@ export async function fetchAirQuality(location, signal) {
   const p = new URLSearchParams({
     sidoName: location.region1 || location.name?.split(' ')[0] || '서울',
     stationName: location.region3 || location.region2 || '',
-    districtName: location.region2 || ''
+    districtName: location.region2 || '',
+    latitude: String(location.latitude || ''),
+    longitude: String(location.longitude || '')
   });
   const url = `${APP_CONFIG.apiBaseUrl}/air?${p}`;
   let lastError;

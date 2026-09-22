@@ -15,6 +15,7 @@
 const KMA_BASE = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0';
 const KMA_LIVING_BASE = 'https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5';
 const AIR_BASE = 'https://apis.data.go.kr/B552584/ArpltnInforInqireSvc';
+const AIR_STATION_BASE = 'https://apis.data.go.kr/B552584/MsrstnInfoInqireSvc';
 
 export default {
   async fetch(request, env) {
@@ -84,18 +85,35 @@ async function airRoute(url, env, headers) {
   const sidoName = normalizeSido(url.searchParams.get('sidoName') || '서울');
   const stationName = String(url.searchParams.get('stationName') || '').trim();
   const districtName = String(url.searchParams.get('districtName') || '').trim();
+  const latitude = Number(url.searchParams.get('latitude'));
+  const longitude = Number(url.searchParams.get('longitude'));
   const key = env.DATA_GO_KR_SERVICE_KEY;
 
   const currentUrl = dataGoUrl(`${AIR_BASE}/getCtprvnRltmMesureDnsty`, key, {
     returnType: 'json', numOfRows: 200, pageNo: 1, sidoName, ver: '1.3'
   });
-  const [currentData, forecastResults] = await Promise.all([
+  const stationListUrl = dataGoUrl(`${AIR_STATION_BASE}/getMsrstnList`, key, {
+    returnType: 'json', numOfRows: 1000, pageNo: 1, addr: sidoName
+  });
+  const [currentData, forecastResults, stationListResult] = await Promise.all([
     fetchJson(currentUrl, '에어코리아 실시간 측정정보'),
-    Promise.allSettled(['PM10', 'PM25'].map(code => fetchAirForecast(code, key)))
+    Promise.allSettled(['PM10', 'PM25'].map(code => fetchAirForecast(code, key))),
+    isKoreanCoordinate(latitude, longitude)
+      ? fetchJson(stationListUrl, '에어코리아 측정소 정보').then(data => { assertPublicData(data, '에어코리아 측정소 정보'); return data; }).then(value => ({ status: 'fulfilled', value }), reason => ({ status: 'rejected', reason }))
+      : Promise.resolve({ status: 'skipped' })
   ]);
   assertPublicData(currentData, '에어코리아 실시간 측정정보');
   const items = normalizeItems(currentData?.response?.body?.items);
-  const match = selectStation(items, stationName, districtName);
+  let match = selectStation(items, stationName, districtName);
+  let nearestStation = null;
+  if (!match.item && stationListResult.status === 'fulfilled') {
+    const stations = normalizeItems(stationListResult.value?.response?.body?.items);
+    nearestStation = findNearestStation(stations, latitude, longitude);
+    if (nearestStation) {
+      const nearestMatch = selectStation(items, nearestStation.stationName, districtName);
+      if (nearestMatch.item) match = { ...nearestMatch, type: 'nearest-coordinate' };
+    }
+  }
   const selected = match.item;
 
   const dailyMap = new Map();
@@ -133,6 +151,8 @@ async function airRoute(url, env, headers) {
     requested_station: stationName || null,
     requested_district: districtName || null,
     station_match: match.type,
+    nearest_station: nearestStation?.stationName || null,
+    station_lookup: stationListResult.status,
     current,
     daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date))
   }, 200, { ...headers, 'Cache-Control': 'public, max-age=900' });
@@ -532,6 +552,22 @@ function selectStation(items, requested, district = '') {
     if (item) return { item, type: 'district-fallback' };
   }
   return { item: null, type: 'none' };
+}
+function findNearestStation(stations, latitude, longitude) {
+  let nearest = null;
+  for (const station of stations) {
+    const lat = Number(station.dmX), lon = Number(station.dmY);
+    if (!isKoreanCoordinate(lat, lon) || !station.stationName) continue;
+    const distance = haversineKm(latitude, longitude, lat, lon);
+    if (!nearest || distance < nearest.distance_km) nearest = { ...station, distance_km: round(distance, 2) };
+  }
+  return nearest;
+}
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const toRad = value => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 function gradeForRegion(text, sido) {
   const target = normalizeSido(sido);
