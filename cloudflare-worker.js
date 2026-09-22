@@ -74,6 +74,8 @@ async function weatherRoute(url, env, headers) {
     lifeStatus: {
       uv: uvResult.status,
       air_stagnation: stagnationResult.status,
+      uv_area_no: uvResult.area_no || null,
+      air_stagnation_area_no: stagnationResult.area_no || null,
       uv_error: uvResult.message || null,
       air_stagnation_error: stagnationResult.message || null
     }
@@ -98,14 +100,18 @@ async function airRoute(url, env, headers) {
   let match = selectStation(items, stationName, districtName);
   let nearestStation = null;
   let stationListResult = { status: 'skipped' };
-  if (!match.item && isKoreanCoordinate(latitude, longitude)) {
+  const selectedHasAir = hasAirMeasurement(match.item);
+  if ((!match.item || !selectedHasAir) && isKoreanCoordinate(latitude, longitude)) {
     stationListResult = await fetchAirStations(sidoName, districtName, key)
       .then(value => ({ status: 'fulfilled', value }), reason => ({ status: 'rejected', reason }));
   }
-  if (!match.item && stationListResult.status === 'fulfilled') {
+  if ((!match.item || !selectedHasAir) && stationListResult.status === 'fulfilled') {
     const stations = stationListResult.value;
-    nearestStation = findNearestStation(stations, latitude, longitude);
-    if (nearestStation) {
+    const nearest = findNearestMeasurement(stations, items, latitude, longitude);
+    nearestStation = nearest?.station || findNearestStation(stations, latitude, longitude);
+    if (nearest?.item) {
+      match = { item: nearest.item, type: selectedHasAir ? 'nearest-with-data' : 'nearest-coordinate' };
+    } else if (!match.item && nearestStation) {
       const nearestMatch = selectStation(items, nearestStation.stationName, districtName);
       if (nearestMatch.item) match = { ...nearestMatch, type: 'nearest-coordinate' };
     }
@@ -192,11 +198,23 @@ async function fetchKmaForecast(nx, ny, rawKey) {
 
 async function fetchLivingIndexSafely(endpoint, areaNo, rawKey, label) {
   if (!areaNo) return { status: 'missing_area_code', data: null };
-  try {
-    return { status: 'ok', data: await fetchLivingIndex(endpoint, areaNo, rawKey, label) };
-  } catch (error) {
-    return { status: 'unavailable', data: null, message: error?.message || String(error) };
+  let lastError = null;
+  for (const candidate of livingAreaCandidates(areaNo)) {
+    try {
+      return { status: 'ok', data: await fetchLivingIndex(endpoint, candidate, rawKey, label), area_no: candidate };
+    } catch (error) {
+      lastError = error;
+    }
   }
+  return { status: 'unavailable', data: null, message: lastError?.message || String(lastError), area_no: null };
+}
+
+function livingAreaCandidates(areaNo) {
+  const exact = normalizeAreaNo(areaNo);
+  if (!exact) return [];
+  const district = `${exact.slice(0, 5)}00000`;
+  const province = `${exact.slice(0, 2)}00000000`;
+  return [...new Set([exact, district, province])];
 }
 
 async function fetchLivingIndex(endpoint, areaNo, rawKey, label) {
@@ -282,6 +300,8 @@ function buildWeatherPayload({ latitude, longitude, grid, areaNo, observation, f
     life_indices: {
       uv: lifeStatus.uv,
       air_stagnation: lifeStatus.air_stagnation,
+      uv_area_no: lifeStatus.uv_area_no,
+      air_stagnation_area_no: lifeStatus.air_stagnation_area_no,
       uv_error: lifeStatus.uv_error,
       air_stagnation_error: lifeStatus.air_stagnation_error,
       uv_issued_at: uvIndex?.issued_at || null,
@@ -450,11 +470,20 @@ function dataGoUrl(endpoint, rawKey, params) {
 }
 
 async function fetchJson(url, label) {
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
-  const text = await response.text();
-  if (!response.ok) throw new Error(`${label} HTTP 오류 (${response.status})`);
-  try { return JSON.parse(text); }
-  catch { throw new Error(`${label}가 JSON이 아닌 응답을 반환했습니다: ${text.slice(0, 180)}`); }
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(url, { headers: { Accept: 'application/json' } });
+      const text = await response.text();
+      if (!response.ok) throw new Error(`${label} HTTP 오류 (${response.status})`);
+      try { return JSON.parse(text); }
+      catch { throw new Error(`${label}가 JSON이 아닌 응답을 반환했습니다: ${text.slice(0, 180)}`); }
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+  throw lastError;
 }
 
 function assertKma(data) {
@@ -563,6 +592,25 @@ function findNearestStation(stations, latitude, longitude) {
     if (!nearest || distance < nearest.distance_km) nearest = { ...station, distance_km: round(distance, 2) };
   }
   return nearest;
+}
+function findNearestMeasurement(stations, items, latitude, longitude) {
+  const itemByName = new Map(items.map(item => [cleanStationName(item.stationName), item]));
+  const candidates = [];
+  for (const station of stations) {
+    const lat = Number(station.dmX), lon = Number(station.dmY);
+    if (!isKoreanCoordinate(lat, lon) || !station.stationName) continue;
+    const item = itemByName.get(cleanStationName(station.stationName));
+    if (!hasAirMeasurement(item)) continue;
+    candidates.push({ station, item, distance: haversineKm(latitude, longitude, lat, lon) });
+  }
+  candidates.sort((a, b) => a.distance - b.distance);
+  return candidates[0] || null;
+}
+function cleanStationName(value) {
+  return String(value || '').replace(/\s+/g, '').replace(/측정소$/, '').replace(/[0-9·.\-]/g, '').replace(/본동$/, '동');
+}
+function hasAirMeasurement(item) {
+  return Boolean(item) && [item.pm10Value, item.pm25Value, item.khaiValue].some(value => numberOrNull(value) !== null);
 }
 function haversineKm(lat1, lon1, lat2, lon2) {
   const toRad = value => value * Math.PI / 180;

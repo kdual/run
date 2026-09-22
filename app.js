@@ -1,7 +1,7 @@
 import { APP_CONFIG } from './running-score-config.js?v=14';
-import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=16';
-import { fetchAirQuality } from './air-quality.js?v=18';
-import { getStored, setStored, getCache, setCache } from './storage.js?v=15';
+import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=19';
+import { fetchAirQuality } from './air-quality.js?v=19';
+import { getStored, setStored, getCache, setCache } from './storage.js?v=19';
 import { currentConditions, dailyScore, findBestRunningTimes, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=14';
 import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=14';
 import { fromPace, fromSpeed, paceTableRows, renderPace } from './pace-calculator.js';
@@ -27,7 +27,7 @@ async function loadData(force=false){
   if(!state.location.areaNo){try{state.location=await ensureAreaCode(state.location);setStored('location',state.location);}catch{/* 일반 날씨는 행정구역코드 없이도 조회 가능 */}}
   $('headerLocation').textContent=state.location.name;
   const cached=getCache(state.location);const fresh=cached&&currentSeoulDate(new Date(cached.savedAt))===currentSeoulDate()&&Date.now()-cached.savedAt<APP_CONFIG.cacheMinutes*60000;
-  if(!force&&fresh){state.data={...cached.payload,airPending:false,savedAt:cached.savedAt,fromCache:true};render();setLoading(false);return;}
+  if(!force&&fresh){state.data={...cached.payload,airPending:false,savedAt:cached.savedAt,fromCache:true};render();}
   const airPromise=fetchAirQuality(state.location,controller.signal).then(value=>({status:'fulfilled',value}),reason=>({status:'rejected',reason}));
   try{
     const weather=await fetchWeather(state.location,controller.signal);if(controller.signal.aborted)return;
@@ -112,4 +112,4 @@ async function search(){const q=$('locationSearch').value.trim();if(q.length<2){
 $('locationButton').addEventListener('click',()=>{$('locationDialog').showModal();setTimeout(()=>{initLocationMap();state.map?.relayout();showLocationOnMap(state.location);$('locationSearch').focus();},0);});$('locationConfirm').addEventListener('click',()=>{if(state.selectedLocation)chooseLocation(state.selectedLocation);});$('useMyLocation').addEventListener('click',locate);$('searchLocation').addEventListener('click',search);$('locationSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();search();}});$('refreshButton').addEventListener('click',()=>loadData(true));$('themeButton').addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));document.querySelectorAll('[data-hourly-day]').forEach((b,i)=>b.addEventListener('click',()=>{state.hourlyDay=i;renderHourly();}));$('hourlyNextDay').addEventListener('click',()=>{state.hourlyDay=1;renderHourly();});document.querySelectorAll('[data-calc-mode]').forEach(b=>b.addEventListener('click',()=>{state.calcMode=b.dataset.calcMode;document.querySelectorAll('[data-calc-mode]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-selected',x===b);});calculatorTemplate();}));addEventListener('online',()=>{$('offlineBanner').hidden=true;loadData();});addEventListener('offline',()=>{$('offlineBanner').hidden=false;});
 
 calculatorTemplate();renderPaceTable();loadData();
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=18',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=19',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
