@@ -146,6 +146,7 @@ async function airRoute(url, env, headers) {
 async function fetchAirStations(sidoName, districtName, key) {
   const addresses = [...new Set([districtName, sidoName].map(value => String(value || '').trim()).filter(Boolean))];
   let lastError = null;
+  const stationMap = new Map();
   for (const addr of addresses) {
     const stationListUrl = dataGoUrl(`${AIR_STATION_BASE}/getMsrstnList`, key, {
       returnType: 'json', numOfRows: addr === sidoName ? 400 : 100, pageNo: 1, addr
@@ -155,7 +156,10 @@ async function fetchAirStations(sidoName, districtName, key) {
         const data = await fetchJson(stationListUrl, '에어코리아 측정소 정보');
         assertPublicData(data, '에어코리아 측정소 정보');
         const stations = normalizeItems(data?.response?.body?.items);
-        if (stations.length) return stations;
+        for (const station of stations) {
+          const stationKey = cleanStationName(station.stationName);
+          if (stationKey) stationMap.set(stationKey, station);
+        }
         break;
       } catch (error) {
         lastError = error;
@@ -163,6 +167,7 @@ async function fetchAirStations(sidoName, districtName, key) {
       }
     }
   }
+  if (stationMap.size) return [...stationMap.values()];
   throw lastError || new Error('주변 에어코리아 측정소를 찾지 못했습니다.');
 }
 
