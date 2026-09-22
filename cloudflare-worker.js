@@ -100,17 +100,18 @@ async function airRoute(url, env, headers) {
   let match = selectStation(items, stationName, districtName);
   let nearestStation = null;
   let stationListResult = { status: 'skipped' };
-  const selectedHasAir = hasAirMeasurement(match.item);
-  if ((!match.item || !selectedHasAir) && isKoreanCoordinate(latitude, longitude)) {
+  const selectedAirCount = airMeasurementCount(match.item);
+  const selectedHasCompletePm = hasCompletePmMeasurement(match.item);
+  if ((!match.item || !selectedHasCompletePm) && isKoreanCoordinate(latitude, longitude)) {
     stationListResult = await fetchAirStations(sidoName, districtName, key)
       .then(value => ({ status: 'fulfilled', value }), reason => ({ status: 'rejected', reason }));
   }
-  if ((!match.item || !selectedHasAir) && stationListResult.status === 'fulfilled') {
+  if ((!match.item || !selectedHasCompletePm) && stationListResult.status === 'fulfilled') {
     const stations = stationListResult.value;
     const nearest = findNearestMeasurement(stations, items, latitude, longitude);
     nearestStation = nearest?.station || findNearestStation(stations, latitude, longitude);
-    if (nearest?.item) {
-      match = { item: nearest.item, type: selectedHasAir ? 'nearest-with-data' : 'nearest-coordinate' };
+    if (nearest?.item && (hasCompletePmMeasurement(nearest.item) || nearest.measurementCount > selectedAirCount)) {
+      match = { item: nearest.item, type: match.item ? 'nearest-with-complete-pm' : 'nearest-coordinate' };
     } else if (!match.item && nearestStation) {
       const nearestMatch = selectStation(items, nearestStation.stationName, districtName);
       if (nearestMatch.item) match = { ...nearestMatch, type: 'nearest-coordinate' };
@@ -601,16 +602,28 @@ function findNearestMeasurement(stations, items, latitude, longitude) {
     if (!isKoreanCoordinate(lat, lon) || !station.stationName) continue;
     const item = itemByName.get(cleanStationName(station.stationName));
     if (!hasAirMeasurement(item)) continue;
-    candidates.push({ station, item, distance: haversineKm(latitude, longitude, lat, lon) });
+    candidates.push({
+      station,
+      item,
+      measurementCount: airMeasurementCount(item),
+      completePm: hasCompletePmMeasurement(item),
+      distance: haversineKm(latitude, longitude, lat, lon)
+    });
   }
-  candidates.sort((a, b) => a.distance - b.distance);
+  candidates.sort((a, b) => Number(b.completePm) - Number(a.completePm) || b.measurementCount - a.measurementCount || a.distance - b.distance);
   return candidates[0] || null;
 }
 function cleanStationName(value) {
   return String(value || '').replace(/\s+/g, '').replace(/측정소$/, '').replace(/[0-9·.\-]/g, '').replace(/본동$/, '동');
 }
 function hasAirMeasurement(item) {
-  return Boolean(item) && [item.pm10Value, item.pm25Value, item.khaiValue].some(value => numberOrNull(value) !== null);
+  return airMeasurementCount(item) > 0;
+}
+function hasCompletePmMeasurement(item) {
+  return Boolean(item) && numberOrNull(item.pm10Value) !== null && numberOrNull(item.pm25Value) !== null;
+}
+function airMeasurementCount(item) {
+  return item ? [item.pm10Value, item.pm25Value, item.khaiValue].filter(value => numberOrNull(value) !== null).length : 0;
 }
 function haversineKm(lat1, lon1, lat2, lon2) {
   const toRad = value => value * Math.PI / 180;
