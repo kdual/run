@@ -8,7 +8,7 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=12">
+  <link rel="stylesheet" href="./styles.css?v=14">
   <link rel="stylesheet" href="./responsive.css?v=12">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
@@ -69,7 +69,7 @@
       </article>
 
       <article id="currentWeatherCard" class="card current-card">
-        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2><small id="observationSource" class="data-source">기상청·에어코리아 연결 중</small></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
+        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2><small id="observationSource" class="data-source">기상청 생활기상지수·에어코리아 연결 중</small></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
         <div id="weatherMetrics" class="metric-grid"></div>
         <div class="sun-row"><span>☀ 일출 <strong id="sunrise">--:--</strong></span><span>◐ 일몰 <strong id="sunset">--:--</strong></span></div>
         <p id="sunStatus" class="muted"></p>
@@ -136,7 +136,7 @@
     </section>
   </main>
 
-  <footer><p>날씨: 기상청 초단기실황·단기예보 · 대기질: 한국환경공단 에어코리아 측정소 실측·예보</p><p>RUNWISE · 개인용 러닝 환경 참고 대시보드</p></footer>
+  <footer><p>날씨·UV·대기정체: 기상청 · 대기질: 한국환경공단 에어코리아 측정소 실측·예보</p><p>RUNWISE · 개인용 러닝 환경 참고 대시보드</p></footer>
 
   <dialog id="locationDialog">
     <form method="dialog" class="dialog-card"><div class="dialog-heading"><h2>지역 설정</h2><button value="cancel" aria-label="닫기">×</button></div>
@@ -150,6 +150,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=13"></script>
+  <script type="module" src="./app.js?v=14"></script>
 </body>
 </html>

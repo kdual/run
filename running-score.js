@@ -1,4 +1,4 @@
-import { APP_CONFIG } from './running-score-config.js?v=11';
+import { APP_CONFIG } from './running-score-config.js?v=14';
 import { clamp, safe, dateOnly } from './utils.js';
 
 function bandPenalty(value, idealLow, idealHigh, outerLow, outerHigh) {
@@ -53,7 +53,7 @@ function airGradeIndex(pm25,pm10){
 export function currentConditions(weather, hourly) {
   const c = { ...weather.current };
   const nearest = hourly.reduce((best, row) => Math.abs(new Date(row.time) - new Date(weather.current.time)) < Math.abs(new Date(best.time) - new Date(weather.current.time)) ? row : best, hourly[0]);
-  for (const key of ['precipitation_probability','uv_index','pm2_5','pm10','air_quality_index','air_quality_estimated','visibility']) c[key] = nearest?.[key] ?? null;
+  for (const key of ['precipitation_probability','uv_index','air_stagnation_index','pm2_5','pm10','air_quality_index','air_quality_estimated','visibility']) c[key] = nearest?.[key] ?? null;
   c.score = calculateRunningScore(c);
   return c;
 }

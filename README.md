@@ -1,6 +1,6 @@
 # RUNWISE — Running Dashboard
 
-기상청·에어코리아 데이터를 이용해 국내 러닝 환경을 분석하고, 목표 기록에 필요한 페이스와 속도를 계산하는 정적 웹사이트입니다. 주소와 장소 검색은 카카오맵을 사용하며 개인 PB나 대회 기록은 저장하지 않습니다.
+기상청·에어코리아 데이터를 이용해 국내 러닝 환경을 분석하고, 목표 기록에 필요한 페이스와 속도를 계산하는 정적 웹사이트입니다. 기상청 생활기상지수의 UV·대기정체지수도 3시간 단위로 함께 표시합니다. 주소와 장소 검색은 카카오맵을 사용하며 개인 PB나 대회 기록은 저장하지 않습니다.
 
 ## 주요 기능
 
@@ -55,7 +55,7 @@ Running Score는 환경 참고지수이며 의학적 안전 판정이 아닙니�
 
 ## 데이터와 배포 구조
 
-날씨는 기상청 초단기실황·단기예보, 대기질은 에어코리아 측정소 실측·예보를 사용합니다. 공공데이터 인증키는 브라우저나 GitHub 저장소에 두지 않고 Cloudflare Worker의 `DATA_GO_KR_SERVICE_KEY` Secret에 저장합니다. Worker에는 `ALLOWED_ORIGIN=https://kdual.github.io` 변수도 필요합니다.
+날씨는 기상청 초단기실황·단기예보, UV·대기정체지수는 기상청 생활기상지수 조회서비스(4.0)의 V5 엔드포인트, 대기질은 에어코리아 측정소 실측·예보를 사용합니다. 공공데이터 인증키는 브라우저나 GitHub 저장소에 두지 않고 Cloudflare Worker의 `DATA_GO_KR_SERVICE_KEY` Secret에 저장합니다. Worker에는 `ALLOWED_ORIGIN=https://kdual.github.io` 변수도 필요합니다. 생활기상지수는 카카오 주소검색에서 얻은 10자리 법정동코드(`areaNo`)로 조회합니다.
 
 Cloudflare 대시보드의 Worker 편집기에 `cloudflare-worker.js` 내용을 반영하고 배포한 뒤, `running-score-config.js`의 `apiBaseUrl`을 해당 Worker 주소로 설정합니다. 카카오 JavaScript 키에는 `https://kdual.github.io` 도메인을 등록해야 합니다.
 
@@ -64,10 +64,11 @@ Cloudflare 대시보드의 Worker 편집기에 `cloudflare-worker.js` 내용을 
 ## 문제 해결
 
 - 지역 검색이 안 되면 카카오 JavaScript SDK 도메인 등록과 인터넷 연결을 확인합니다.
-- 날씨가 비어 있으면 Worker의 `/health`, `/weather?latitude=37.5145&longitude=127.1059` 응답과 Secret 설정을 확인합니다.
+- 날씨가 비어 있으면 Worker의 `/health`, `/weather?latitude=37.5145&longitude=127.1059&areaNo=1171000000` 응답과 Secret 설정을 확인합니다.
 - 위치 권한이 거부되어도 검색 또는 기본 위치로 정상 작동합니다.
 - 배포 직후 이전 화면이 보이면 브라우저 새로고침 또는 사이트 데이터 삭제 후 다시 엽니다.
 - Pages에서 404가 나오면 `run/index.html` 경로와 Pages 배포 브랜치를 확인합니다.
+- UV·대기정체만 비어 있으면 공공데이터포털에서 생활기상지수 조회서비스(4.0)가 승인됐는지와 `/weather` 응답의 `life_indices` 상태를 확인합니다.
 - 대기질만 비어 있으면 `/air?sidoName=서울&stationName=송파구` 응답을 확인합니다. 주소의 구·군명과 일치하는 측정소가 없으면 정확성을 위해 다른 측정소를 임의 대체하지 않습니다.
 
 ## 향후 확장 위치
@@ -76,4 +77,4 @@ Garmin CSV, 주간 거리, 신발 마일리지, 훈련 부하 등은 별도 모�
 
 ## 출처
 
-날씨: 기상청 초단기실황·단기예보 · 대기질: 한국환경공단 에어코리아 · 주소·지도: 카카오맵
+날씨·UV·대기정체: 기상청 · 대기질: 한국환경공단 에어코리아 · 주소·지도: 카카오맵

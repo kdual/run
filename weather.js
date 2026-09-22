@@ -1,7 +1,8 @@
-import { APP_CONFIG } from './running-score-config.js?v=11';
+import { APP_CONFIG } from './running-score-config.js?v=14';
 
-export async function fetchWeather({ latitude, longitude }, signal) {
+export async function fetchWeather({ latitude, longitude, areaNo }, signal) {
   const params = new URLSearchParams({ latitude, longitude });
+  if (/^\d{10}$/.test(String(areaNo || ''))) params.set('areaNo', areaNo);
   const response = await fetch(`${APP_CONFIG.apiBaseUrl}/weather?${params}`, { signal });
   const data = await response.json().catch(() => null);
   if (!response.ok || !data?.hourly || !data?.current) {
@@ -67,6 +68,7 @@ export async function searchLocations(query) {
       roadAddress: item.road_address?.address_name || '',
       latitude: Number(item.y),
       longitude: Number(item.x),
+      areaNo: item.address?.b_code || '',
       ...splitAddress(item.address_name),
       category: '주소'
     });
@@ -93,8 +95,21 @@ export function reverseGeocode(latitude, longitude) {
         longitude,
         region1: region.region_1depth_name || '',
         region2: region.region_2depth_name || '',
-        region3: region.region_3depth_name || ''
+        region3: region.region_3depth_name || '',
+        areaNo: region.b_code || ''
       });
     });
   });
+}
+
+export async function ensureAreaCode(location) {
+  if (/^\d{10}$/.test(String(location?.areaNo || ''))) return location;
+  const resolved = await reverseGeocode(location.latitude, location.longitude);
+  return {
+    ...location,
+    region1: location.region1 || resolved.region1,
+    region2: location.region2 || resolved.region2,
+    region3: location.region3 || resolved.region3,
+    areaNo: resolved.areaNo || ''
+  };
 }

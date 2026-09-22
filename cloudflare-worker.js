@@ -8,11 +8,12 @@
  * Public routes
  * - GET /health
  * - GET /weather/current?nx=62&ny=126
- * - GET /weather?latitude=37.5145&longitude=127.1059
+ * - GET /weather?latitude=37.5145&longitude=127.1059&areaNo=1171000000
  * - GET /air?sidoName=서울&stationName=송파구
  */
 
 const KMA_BASE = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0';
+const KMA_LIVING_BASE = 'https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5';
 const AIR_BASE = 'https://apis.data.go.kr/B552584/ArpltnInforInqireSvc';
 
 export default {
@@ -53,16 +54,29 @@ async function currentRoute(url, env, headers) {
 async function weatherRoute(url, env, headers) {
   const latitude = Number(url.searchParams.get('latitude'));
   const longitude = Number(url.searchParams.get('longitude'));
+  const areaNo = normalizeAreaNo(url.searchParams.get('areaNo'));
   if (!isKoreanCoordinate(latitude, longitude)) {
     return json({ ok: false, error: 'INVALID_LOCATION', message: '대한민국 범위의 위도·경도가 필요합니다.' }, 400, headers);
   }
 
   const grid = latLonToGrid(latitude, longitude);
-  const [observation, forecast] = await Promise.all([
+  const [observation, forecast, uvResult, stagnationResult] = await Promise.all([
     fetchKmaCurrent(grid.nx, grid.ny, env.DATA_GO_KR_SERVICE_KEY),
-    fetchKmaForecast(grid.nx, grid.ny, env.DATA_GO_KR_SERVICE_KEY)
+    fetchKmaForecast(grid.nx, grid.ny, env.DATA_GO_KR_SERVICE_KEY),
+    fetchLivingIndexSafely('getUVIdxV5', areaNo, env.DATA_GO_KR_SERVICE_KEY, '자외선지수'),
+    fetchLivingIndexSafely('getAirDiffusionIdxV5', areaNo, env.DATA_GO_KR_SERVICE_KEY, '대기정체지수')
   ]);
-  const weather = buildWeatherPayload({ latitude, longitude, grid, observation, forecast });
+  const weather = buildWeatherPayload({
+    latitude, longitude, grid, areaNo, observation, forecast,
+    uvIndex: uvResult.data,
+    airStagnation: stagnationResult.data,
+    lifeStatus: {
+      uv: uvResult.status,
+      air_stagnation: stagnationResult.status,
+      uv_error: uvResult.message || null,
+      air_stagnation_error: stagnationResult.message || null
+    }
+  });
   return json(weather, 200, { ...headers, 'Cache-Control': 'public, max-age=300' });
 }
 
@@ -151,6 +165,38 @@ async function fetchKmaForecast(nx, ny, rawKey) {
   return { base, items: normalizeItems(data?.response?.body?.items?.item) };
 }
 
+async function fetchLivingIndexSafely(endpoint, areaNo, rawKey, label) {
+  if (!areaNo) return { status: 'missing_area_code', data: null };
+  try {
+    return { status: 'ok', data: await fetchLivingIndex(endpoint, areaNo, rawKey, label) };
+  } catch (error) {
+    return { status: 'unavailable', data: null, message: error?.message || String(error) };
+  }
+}
+
+async function fetchLivingIndex(endpoint, areaNo, rawKey, label) {
+  const base = livingIndexBaseTime();
+  const requestTime = `${base.date}${base.time.slice(0, 2)}`;
+  const url = dataGoUrl(`${KMA_LIVING_BASE}/${endpoint}`, rawKey, {
+    pageNo: 1, numOfRows: 10, dataType: 'JSON', areaNo, time: requestTime
+  });
+  const data = await fetchJson(url, `기상청 ${label}`);
+  assertPublicData(data, `기상청 ${label}`);
+  const item = normalizeItems(data?.response?.body?.items?.item)[0];
+  if (!item) throw new Error(`기상청 ${label} 응답에 예측값이 없습니다.`);
+
+  const issued = String(item.date || requestTime).replace(/\D/g, '').slice(0, 10);
+  if (issued.length !== 10) throw new Error(`기상청 ${label} 기준시각을 확인할 수 없습니다.`);
+  const points = [];
+  for (let offset = 0; offset <= 78; offset += 3) {
+    const value = numberOrNull(item[`h${offset}`]);
+    if (!Number.isFinite(value)) continue;
+    points.push({ time: addHoursCompact(issued, offset), value });
+  }
+  if (!points.length) throw new Error(`기상청 ${label} 시간대 자료가 없습니다.`);
+  return { issued_at: compactDateHourToIso(issued), interval_hours: 3, points };
+}
+
 async function fetchAirForecast(code, rawKey) {
   const url = dataGoUrl(`${AIR_BASE}/getMinuDustFrcstDspth`, rawKey, {
     returnType: 'json', numOfRows: 100, pageNo: 1, searchDate: kstDateParts().dateDashed, InformCode: code
@@ -160,7 +206,7 @@ async function fetchAirForecast(code, rawKey) {
   return normalizeItems(data?.response?.body?.items);
 }
 
-function buildWeatherPayload({ latitude, longitude, grid, observation, forecast }) {
+function buildWeatherPayload({ latitude, longitude, grid, areaNo, observation, forecast, uvIndex, airStagnation, lifeStatus }) {
   const grouped = new Map();
   for (const item of forecast.items) {
     if (!item.fcstDate || !item.fcstTime) continue;
@@ -171,7 +217,11 @@ function buildWeatherPayload({ latitude, longitude, grid, observation, forecast 
   }
 
   const rows = [...grouped.values()].sort((a, b) => a.time.localeCompare(b.time)).map(kmaRowToWeather);
-  for (const row of rows) row.is_day = isDaylight(row.time, latitude, longitude) ? 1 : 0;
+  for (const row of rows) {
+    row.is_day = isDaylight(row.time, latitude, longitude) ? 1 : 0;
+    row.uv_index = row.is_day ? livingIndexValueAt(uvIndex, row.time) : 0;
+    row.air_stagnation_index = livingIndexValueAt(airStagnation, row.time);
+  }
   const nearest = rows.reduce((best, row) => !best || Math.abs(Date.parse(`${row.time}:00+09:00`) - Date.parse(`${observation.time}:00+09:00`)) < Math.abs(Date.parse(`${best.time}:00+09:00`) - Date.parse(`${observation.time}:00+09:00`)) ? row : best, null);
   const t = observation.values.temperature;
   const rh = observation.values.humidity;
@@ -192,19 +242,30 @@ function buildWeatherPayload({ latitude, longitude, grid, observation, forecast 
     wind_direction_10m: observation.values.windDirection,
     wind_gusts_10m: null,
     visibility: null,
-    uv_index: null,
+    uv_index: isDaylight(observation.time, latitude, longitude) ? livingIndexValueAt(uvIndex, observation.time) : 0,
+    air_stagnation_index: livingIndexValueAt(airStagnation, observation.time),
     is_day: isDaylight(observation.time, latitude, longitude) ? 1 : 0
   };
 
   const hourly = rowsToColumns(rows);
   const daily = buildDaily(rows, latitude, longitude, 7);
   return {
-    source: '기상청 초단기실황·단기예보',
+    source: '기상청 초단기실황·단기예보·생활기상지수',
     source_updated_at: `${forecast.base.date}T${forecast.base.time.slice(0, 2)}:00`,
-    latitude, longitude, grid, timezone: 'Asia/Seoul', current, hourly, daily,
+    latitude, longitude, grid, area_no: areaNo, timezone: 'Asia/Seoul', current, hourly, daily,
+    life_indices: {
+      uv: lifeStatus.uv,
+      air_stagnation: lifeStatus.air_stagnation,
+      uv_error: lifeStatus.uv_error,
+      air_stagnation_error: lifeStatus.air_stagnation_error,
+      uv_issued_at: uvIndex?.issued_at || null,
+      air_stagnation_issued_at: airStagnation?.issued_at || null,
+      interval_hours: 3
+    },
     limitations: {
       forecast_days: 4,
-      uv_index: '단기예보 조회서비스에서 제공하지 않아 정보 없음으로 표시',
+      uv_index: uvIndex ? '기상청 생활기상지수 3시간 단위 예측값' : '생활기상지수 조회 실패 또는 행정구역코드 없음',
+      air_stagnation_index: airStagnation ? '기상청 생활기상지수 3시간 단위 예측값' : '생활기상지수 조회 실패 또는 행정구역코드 없음',
       wind_gusts: '단기예보 조회서비스에서 제공하지 않아 정보 없음으로 표시',
       days_5_to_7: '기상청 중기예보 API 추가 승인 전까지 정보 없음으로 표시'
     }
@@ -233,6 +294,7 @@ function kmaRowToWeather(raw) {
     wind_direction_10m: numberOrNull(raw.VEC),
     wind_gusts_10m: null,
     uv_index: null,
+    air_stagnation_index: null,
     is_day: null,
     SKY: numberOrNull(raw.SKY),
     PTY: pty
@@ -240,7 +302,7 @@ function kmaRowToWeather(raw) {
 }
 
 function rowsToColumns(rows) {
-  const keys = ['time', 'temperature_2m', 'apparent_temperature', 'relative_humidity_2m', 'dew_point_2m', 'precipitation_probability', 'precipitation', 'rain', 'weather_code', 'cloud_cover', 'visibility', 'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'uv_index', 'is_day'];
+  const keys = ['time', 'temperature_2m', 'apparent_temperature', 'relative_humidity_2m', 'dew_point_2m', 'precipitation_probability', 'precipitation', 'rain', 'weather_code', 'cloud_cover', 'visibility', 'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'uv_index', 'air_stagnation_index', 'is_day'];
   return Object.fromEntries(keys.map(key => [key, rows.map(row => row[key] ?? null)]));
 }
 
@@ -248,18 +310,21 @@ function buildDaily(rows, latitude, longitude, days) {
   const today = kstDateParts().dateDashed;
   const dates = Array.from({ length: days }, (_, index) => addDays(today, index));
   const grouped = new Map(dates.map(date => [date, rows.filter(row => row.time.startsWith(date))]));
-  const columns = { time: [], weather_code: [], sunrise: [], sunset: [], uv_index_max: [], precipitation_probability_max: [], temperature_2m_max: [], temperature_2m_min: [] };
+  const columns = { time: [], weather_code: [], sunrise: [], sunset: [], uv_index_max: [], air_stagnation_index_max: [], precipitation_probability_max: [], temperature_2m_max: [], temperature_2m_min: [] };
   for (const date of dates) {
     const dayRows = grouped.get(date) || [];
     const temps = dayRows.map(row => row.temperature_2m).filter(Number.isFinite);
     const pops = dayRows.map(row => row.precipitation_probability).filter(Number.isFinite);
+    const uvValues = dayRows.map(row => row.uv_index).filter(Number.isFinite);
+    const stagnationValues = dayRows.map(row => row.air_stagnation_index).filter(Number.isFinite);
     const noon = dayRows.reduce((best, row) => !best || Math.abs(Number(row.time.slice(11, 13)) - 12) < Math.abs(Number(best.time.slice(11, 13)) - 12) ? row : best, null);
     const sun = sunriseSunset(date, latitude, longitude);
     columns.time.push(date);
     columns.weather_code.push(noon?.weather_code ?? null);
     columns.sunrise.push(sun.sunrise);
     columns.sunset.push(sun.sunset);
-    columns.uv_index_max.push(null);
+    columns.uv_index_max.push(uvValues.length ? Math.max(...uvValues) : null);
+    columns.air_stagnation_index_max.push(stagnationValues.length ? Math.max(...stagnationValues) : null);
     columns.precipitation_probability_max.push(pops.length ? Math.max(...pops) : null);
     columns.temperature_2m_max.push(temps.length ? Math.max(...temps) : null);
     columns.temperature_2m_min.push(temps.length ? Math.min(...temps) : null);
@@ -309,6 +374,18 @@ function villageBaseTime() {
   return compactParts(now);
 }
 
+function livingIndexBaseTime() {
+  const now = kstShiftedDate();
+  let baseHour = Math.floor(now.getUTCHours() / 3) * 3;
+  if (now.getUTCHours() % 3 === 0 && now.getUTCMinutes() < 40) baseHour -= 3;
+  if (baseHour < 0) {
+    now.setUTCDate(now.getUTCDate() - 1);
+    baseHour += 24;
+  }
+  now.setUTCHours(baseHour, 0, 0, 0);
+  return compactParts(now);
+}
+
 function kstShiftedDate() { return new Date(Date.now() + 9 * 60 * 60 * 1000); }
 function compactParts(date) {
   return {
@@ -355,11 +432,29 @@ function corsHeaders(request, env) {
 }
 function json(value, status, headers) { return new Response(JSON.stringify(value, null, 2), { status, headers: { ...headers, 'Content-Type': 'application/json; charset=utf-8' } }); }
 function normalizeKey(value) { try { return decodeURIComponent(String(value || '').trim()); } catch { return String(value || '').trim(); } }
+function normalizeAreaNo(value) { const areaNo = String(value || '').replace(/\D/g, ''); return /^\d{10}$/.test(areaNo) ? areaNo : null; }
 function normalizeItems(value) { if (Array.isArray(value)) return value; if (Array.isArray(value?.item)) return value.item; if (value && typeof value === 'object') return [value]; return []; }
 function numberOrText(value) { if (value === null || value === undefined || value === '') return null; const number = Number(value); return Number.isFinite(number) ? number : String(value); }
 function numberOrNull(value) { const number = Number(value); return value !== null && value !== '' && Number.isFinite(number) ? number : null; }
 function round(value, digits = 1) { return Number.isFinite(value) ? Number(value.toFixed(digits)) : null; }
 function compactToIso(date, time) { return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T${time.slice(0, 2)}:${time.slice(2, 4)}`; }
+function compactDateHourToIso(value) { return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T${value.slice(8, 10)}:00`; }
+function addHoursCompact(value, hours) {
+  const base = new Date(Date.UTC(Number(value.slice(0, 4)), Number(value.slice(4, 6)) - 1, Number(value.slice(6, 8)), Number(value.slice(8, 10))));
+  base.setUTCHours(base.getUTCHours() + hours);
+  return base.toISOString().slice(0, 16);
+}
+function livingIndexValueAt(series, time) {
+  if (!series?.points?.length) return null;
+  const target = Date.parse(`${time}:00+09:00`);
+  let selected = null;
+  for (const point of series.points) {
+    const pointTime = Date.parse(`${point.time}:00+09:00`);
+    if (pointTime <= target && target < pointTime + series.interval_hours * 3600000) selected = point.value;
+    if (pointTime > target) break;
+  }
+  return selected;
+}
 function isKoreanCoordinate(lat, lon) { return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 32 && lat <= 39.5 && lon >= 123 && lon <= 132; }
 function parsePrecipitation(value) {
   if (value === null || value === undefined || value === '' || value === '강수없음') return 0;

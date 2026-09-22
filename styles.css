@@ -24,7 +24,7 @@
 .hourly-detail-heading>strong{font-size:.95rem;color:var(--text)}
 .hourly-score{border-radius:999px;padding:5px 10px;background:var(--surface);font-weight:900;white-space:nowrap}
 .condition-legend{display:flex;justify-content:flex-end;gap:6px;margin:-4px 0 10px}.condition-legend span{padding:3px 7px;border-radius:999px;font-size:.66rem;font-weight:800}
-.hourly-metrics{display:grid;grid-template-columns:repeat(8,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.hourly-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .hourly-metrics>span{padding:9px;min-width:0}
 .hourly-metrics small,.hourly-metrics strong{display:block}
 .hourly-metrics small{color:var(--muted);font-size:.68rem}

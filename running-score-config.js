@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  defaultLocation: { name: '서울 송파구', address: '서울특별시 송파구', region1: '서울특별시', region2: '송파구', latitude: 37.5145, longitude: 127.1059 },
+  defaultLocation: { name: '서울 송파구', address: '서울특별시 송파구', region1: '서울특별시', region2: '송파구', areaNo: '1171000000', latitude: 37.5145, longitude: 127.1059 },
   apiBaseUrl: 'https://runwise-api.jhkwon558.workers.dev',
   timezone: 'Asia/Seoul',
   cacheMinutes: 20,

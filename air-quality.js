@@ -1,4 +1,4 @@
-import { APP_CONFIG } from './running-score-config.js?v=11';
+import { APP_CONFIG } from './running-score-config.js?v=14';
 export async function fetchAirQuality(location, signal) {
   const p = new URLSearchParams({
     sidoName: location.region1 || location.name?.split(' ')[0] || '서울',
