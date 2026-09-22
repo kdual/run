@@ -92,22 +92,19 @@ async function airRoute(url, env, headers) {
   const currentUrl = dataGoUrl(`${AIR_BASE}/getCtprvnRltmMesureDnsty`, key, {
     returnType: 'json', numOfRows: 200, pageNo: 1, sidoName, ver: '1.3'
   });
-  const stationListUrl = dataGoUrl(`${AIR_STATION_BASE}/getMsrstnList`, key, {
-    returnType: 'json', numOfRows: 1000, pageNo: 1, addr: sidoName
-  });
-  const [currentData, forecastResults, stationListResult] = await Promise.all([
-    fetchJson(currentUrl, '에어코리아 실시간 측정정보'),
-    Promise.allSettled(['PM10', 'PM25'].map(code => fetchAirForecast(code, key))),
-    isKoreanCoordinate(latitude, longitude)
-      ? fetchJson(stationListUrl, '에어코리아 측정소 정보').then(data => { assertPublicData(data, '에어코리아 측정소 정보'); return data; }).then(value => ({ status: 'fulfilled', value }), reason => ({ status: 'rejected', reason }))
-      : Promise.resolve({ status: 'skipped' })
-  ]);
+  const forecastPromise = Promise.allSettled(['PM10', 'PM25'].map(code => fetchAirForecast(code, key)));
+  const currentData = await fetchJson(currentUrl, '에어코리아 실시간 측정정보');
   assertPublicData(currentData, '에어코리아 실시간 측정정보');
   const items = normalizeItems(currentData?.response?.body?.items);
   let match = selectStation(items, stationName, districtName);
   let nearestStation = null;
+  let stationListResult = { status: 'skipped' };
+  if (!match.item && isKoreanCoordinate(latitude, longitude)) {
+    stationListResult = await fetchAirStations(sidoName, districtName, key)
+      .then(value => ({ status: 'fulfilled', value }), reason => ({ status: 'rejected', reason }));
+  }
   if (!match.item && stationListResult.status === 'fulfilled') {
-    const stations = normalizeItems(stationListResult.value?.response?.body?.items);
+    const stations = stationListResult.value;
     nearestStation = findNearestStation(stations, latitude, longitude);
     if (nearestStation) {
       const nearestMatch = selectStation(items, nearestStation.stationName, districtName);
@@ -115,6 +112,7 @@ async function airRoute(url, env, headers) {
     }
   }
   const selected = match.item;
+  const forecastResults = await forecastPromise;
 
   const dailyMap = new Map();
   forecastResults.forEach((result, index) => {
@@ -156,6 +154,29 @@ async function airRoute(url, env, headers) {
     current,
     daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date))
   }, 200, { ...headers, 'Cache-Control': 'public, max-age=900' });
+}
+
+async function fetchAirStations(sidoName, districtName, key) {
+  const addresses = [...new Set([districtName, sidoName].map(value => String(value || '').trim()).filter(Boolean))];
+  let lastError = null;
+  for (const addr of addresses) {
+    const stationListUrl = dataGoUrl(`${AIR_STATION_BASE}/getMsrstnList`, key, {
+      returnType: 'json', numOfRows: addr === sidoName ? 400 : 100, pageNo: 1, addr
+    });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const data = await fetchJson(stationListUrl, '에어코리아 측정소 정보');
+        assertPublicData(data, '에어코리아 측정소 정보');
+        const stations = normalizeItems(data?.response?.body?.items);
+        if (stations.length) return stations;
+        break;
+      } catch (error) {
+        lastError = error;
+        if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 250));
+      }
+    }
+  }
+  throw lastError || new Error('주변 에어코리아 측정소를 찾지 못했습니다.');
 }
 
 async function fetchKmaCurrent(nx, ny, rawKey) {
