@@ -92,7 +92,6 @@ async function airRoute(url, env, headers) {
   const currentUrl = dataGoUrl(`${AIR_BASE}/getCtprvnRltmMesureDnsty`, key, {
     returnType: 'json', numOfRows: 200, pageNo: 1, sidoName, ver: '1.3'
   });
-  const forecastPromise = Promise.allSettled(['PM10', 'PM25'].map(code => fetchAirForecast(code, key)));
   const currentData = await fetchJson(currentUrl, '에어코리아 실시간 측정정보');
   assertPublicData(currentData, '에어코리아 실시간 측정정보');
   const items = normalizeItems(currentData?.response?.body?.items);
@@ -112,25 +111,6 @@ async function airRoute(url, env, headers) {
     }
   }
   const selected = match.item;
-  const forecastResults = await forecastPromise;
-
-  const dailyMap = new Map();
-  forecastResults.forEach((result, index) => {
-    if (result.status !== 'fulfilled') return;
-    const pollutant = index === 0 ? 'pm10' : 'pm2_5';
-    for (const item of result.value) {
-      const grade = gradeForRegion(item.informGrade, sidoName);
-      if (!grade || !item.informData) continue;
-      const row = dailyMap.get(item.informData) || { date: item.informData };
-      const issuedAt = item.dataTime || item.informTime || '';
-      const issuedKey = `${pollutant}_issued_at`;
-      if (row[issuedKey] && row[issuedKey] > issuedAt) continue;
-      row[`${pollutant}_grade`] = grade;
-      row[pollutant] = representativeAirValue(pollutant, grade);
-      row[issuedKey] = issuedAt || null;
-      dailyMap.set(item.informData, row);
-    }
-  });
 
   const current = selected ? {
     station_name: selected.stationName,
@@ -144,7 +124,7 @@ async function airRoute(url, env, headers) {
   } : null;
 
   return json({
-    source: '에어코리아 측정소 실측·대기질 예보',
+    source: '에어코리아 측정소 실측',
     sido_name: sidoName,
     requested_station: stationName || null,
     requested_district: districtName || null,
@@ -152,7 +132,7 @@ async function airRoute(url, env, headers) {
     nearest_station: nearestStation?.stationName || null,
     station_lookup: stationListResult.status,
     current,
-    daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date))
+    daily: []
   }, 200, { ...headers, 'Cache-Control': 'public, max-age=900' });
 }
 
