@@ -8,7 +8,7 @@ export async function fetchAirQuality(location, signal) {
   let lastError;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await fetch(url, { signal });
+      const response = await fetch(url, { signal, cache: 'no-store' });
       const data = await response.json().catch(() => null);
       if (!response.ok || !data) throw new Error(data?.message || `에어코리아 API 오류 (${response.status})`);
       return data;

@@ -88,13 +88,15 @@ async function airRoute(url, env, headers) {
   const currentUrl = dataGoUrl(`${AIR_BASE}/getCtprvnRltmMesureDnsty`, key, {
     returnType: 'json', numOfRows: 200, pageNo: 1, sidoName, ver: '1.3'
   });
-  const currentData = await fetchJson(currentUrl, '에어코리아 실시간 측정정보');
+  const [currentData, forecastResults] = await Promise.all([
+    fetchJson(currentUrl, '에어코리아 실시간 측정정보'),
+    Promise.allSettled(['PM10', 'PM25'].map(code => fetchAirForecast(code, key)))
+  ]);
   assertPublicData(currentData, '에어코리아 실시간 측정정보');
   const items = normalizeItems(currentData?.response?.body?.items);
   const match = selectStation(items, stationName);
   const selected = match.item;
 
-  const forecastResults = await Promise.allSettled(['PM10', 'PM25'].map(code => fetchAirForecast(code, key)));
   const dailyMap = new Map();
   forecastResults.forEach((result, index) => {
     if (result.status !== 'fulfilled') return;
@@ -175,7 +177,7 @@ async function fetchLivingIndexSafely(endpoint, areaNo, rawKey, label) {
 }
 
 async function fetchLivingIndex(endpoint, areaNo, rawKey, label) {
-  const base = livingIndexBaseTime();
+  const base = endpoint.includes('AirDiffusion') ? airStagnationBaseTime() : livingIndexBaseTime();
   const requestTime = `${base.date}${base.time.slice(0, 2)}`;
   const url = dataGoUrl(`${KMA_LIVING_BASE}/${endpoint}`, rawKey, {
     pageNo: 1, numOfRows: 10, dataType: 'JSON', areaNo, time: requestTime
@@ -227,6 +229,7 @@ function buildWeatherPayload({ latitude, longitude, grid, areaNo, observation, f
   const rh = observation.values.humidity;
   const windKmh = Number.isFinite(observation.values.windSpeed) ? observation.values.windSpeed * 3.6 : nearest?.wind_speed_10m ?? null;
   const dew = dewPoint(t, rh);
+  const lifeIndexTime = currentKstHour();
   const current = {
     time: observation.time,
     temperature_2m: t,
@@ -242,9 +245,9 @@ function buildWeatherPayload({ latitude, longitude, grid, areaNo, observation, f
     wind_direction_10m: observation.values.windDirection,
     wind_gusts_10m: null,
     visibility: null,
-    uv_index: isDaylight(observation.time, latitude, longitude) ? livingIndexValueAt(uvIndex, observation.time) : 0,
-    air_stagnation_index: livingIndexValueAt(airStagnation, observation.time),
-    is_day: isDaylight(observation.time, latitude, longitude) ? 1 : 0
+    uv_index: isDaylight(lifeIndexTime, latitude, longitude) ? livingIndexValueAt(uvIndex, lifeIndexTime) : 0,
+    air_stagnation_index: livingIndexValueAt(airStagnation, lifeIndexTime),
+    is_day: isDaylight(lifeIndexTime, latitude, longitude) ? 1 : 0
   };
 
   const hourly = rowsToColumns(rows);
@@ -386,7 +389,24 @@ function livingIndexBaseTime() {
   return compactParts(now);
 }
 
+function airStagnationBaseTime() {
+  const now = kstShiftedDate();
+  let baseHour = Math.floor(now.getUTCHours() / 3) * 3 - 3;
+  if (baseHour < 0) {
+    now.setUTCDate(now.getUTCDate() - 1);
+    baseHour += 24;
+  }
+  now.setUTCHours(baseHour, 0, 0, 0);
+  return compactParts(now);
+}
+
 function kstShiftedDate() { return new Date(Date.now() + 9 * 60 * 60 * 1000); }
+function currentKstHour() {
+  const now = kstShiftedDate();
+  now.setUTCMinutes(0, 0, 0);
+  const parts = compactParts(now);
+  return compactToIso(parts.date, parts.time);
+}
 function compactParts(date) {
   return {
     date: `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, '0')}${String(date.getUTCDate()).padStart(2, '0')}`,

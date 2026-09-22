@@ -91,3 +91,4 @@
 [data-theme="dark"] .data-source{color:#c2cfdb}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 dialog{max-height:calc(100dvh - 28px);overflow:auto}
+.best-list .best-empty{display:block;min-width:0;padding:10px 0;color:var(--muted);white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
