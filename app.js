@@ -3,7 +3,7 @@ import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from '.
 import { fetchAirQuality } from './air-quality.js?v=19';
 import { getStored, setStored, getCache, setCache } from './storage.js?v=19';
 import { currentConditions, dailyScore, findBestRunningTimes, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=20';
-import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=14';
+import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=29';
 import { fromPace, fromSpeed, paceTableRows, renderPace } from './pace-calculator.js';
 import { renderHourlyChart } from './charts.js?v=12';
 import { solarTimes } from './solar-times.js?v=21';
