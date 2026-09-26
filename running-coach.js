@@ -39,12 +39,30 @@ export function environmentAlerts(c) {
 }
 
 export function gearAdvice(c) {
-  const t=safe(c.apparent_temperature,safe(c.temperature_2m,15)); let top='반팔 러닝셔츠', bottom='러닝 쇼츠', extra='없음';
-  if (t<0){top='기모 긴팔 + 보온 재킷';bottom='기모 타이츠';extra='장갑 · 넥워머 · 모자';}
-  else if(t<7){top='긴팔 + 얇은 재킷';bottom='롱 타이츠';extra='얇은 장갑';}
-  else if(t<13){top='긴팔 러닝셔츠';bottom='쇼츠 또는 타이츠';extra=safe(c.wind_speed_10m,0)>20?'얇은 바람막이':'없음';}
-  else if(t<20){top='반팔 러닝셔츠';bottom='러닝 쇼츠';extra=safe(c.precipitation_probability,0)>50?'가벼운 방수 재킷':'없음';}
-  else if(t>=28){top='통기성 민소매 또는 반팔';bottom='가벼운 러닝 쇼츠';extra='모자 · 수분';}
-  if (safe(c.precipitation_probability,0)>60) extra = extra==='없음'?'방수 재킷 · 챙 있는 모자':`${extra} · 방수 재킷`;
-  return {상의:top,하의:bottom,추가:extra};
+  const t=safe(c.apparent_temperature,safe(c.temperature_2m));
+  if(t===null)return {상의:'기온 정보 없음',하의:'기온 정보 없음',추가:'날씨 확인 후 선택',환경:'현재 기온을 확인할 수 없습니다.'};
+  let top='반팔 러닝셔츠',bottom='러닝 쇼츠';
+  const extras=new Set(),conditions=[];
+  if(t<0){top='기모 긴팔 + 보온 겉옷';bottom='기모 타이츠';extras.add('장갑');extras.add('넥워머');}
+  else if(t<7){top='긴팔 + 얇은 겉옷';bottom='롱 타이츠';extras.add('얇은 장갑');}
+  else if(t<13){top='긴팔 러닝셔츠';bottom='쇼츠 또는 타이츠';}
+  else if(t>=28){top='가볍고 통풍되는 민소매 또는 반팔';bottom='가벼운 러닝 쇼츠';extras.add('수분');}
+
+  const rainy=safe(c.precipitation,0)>0||safe(c.precipitation_probability,0)>=60;
+  if(rainy){
+    if(t<28)extras.add('가벼운 방수 겉옷');
+    conditions.push('비 · 미끄러운 노면 확인');
+  }
+  if(safe(c.wind_speed_10m,0)>20){
+    if(t>=7&&t<20&&!rainy)extras.add('얇은 바람막이');
+    conditions.push('바람 20 km/h 초과 · 노출 구간 확인');
+  }
+  if(t>=28)conditions.push('더위 · 강도 조절과 수분 보충');
+  if(c.is_day===1&&safe(c.uv_index,0)>=3){
+    extras.add('자외선 차단제');
+    if(c.uv_index>=6)extras.add('챙 있는 모자');
+  }
+  if(c.is_day===0)extras.add('반사밴드 · 조명');
+  if(safe(c.pm2_5,0)>35||safe(c.air_quality_index,0)>100)conditions.unshift('대기질 나쁨 · 실외 운동 전 확인');
+  return {상의:top,하의:bottom,추가:[...extras].join(' · ')||'없음',환경:conditions.slice(0,2).join(' · ')||'특별한 환경 주의사항 없음'};
 }
