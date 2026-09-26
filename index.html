@@ -8,7 +8,7 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=23">
+  <link rel="stylesheet" href="./styles.css?v=24">
   <link rel="stylesheet" href="./responsive.css?v=20">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
@@ -101,23 +101,16 @@
       <div id="hourlyTextAlternative" class="sr-only"></div>
     </section>
 
-    <section class="dashboard-grid split-grid">
-      <article class="card">
-        <div class="section-heading"><div><p class="eyebrow">COMPARE</p><h2>오늘 vs 내일</h2></div></div>
-        <div class="compare-grid"><div class="compare-panel"><span>TODAY</span><strong id="compareToday">--</strong><small id="compareTodayGrade">분석 중</small><div class="compare-track"><i id="compareTodayBar"></i></div><div id="compareTodayReason" class="factor-row"></div></div><div class="compare-divider">VS</div><div class="compare-panel"><span>TOMORROW</span><strong id="compareTomorrow">--</strong><small id="compareTomorrowGrade">분석 중</small><div class="compare-track"><i id="compareTomorrowBar"></i></div><div id="compareTomorrowReason" class="factor-row"></div></div></div>
-        <p id="comparisonMessage" class="coach-copy">데이터를 불러오는 중입니다.</p>
-      </article>
-      <article class="card">
-        <div class="section-heading"><div><p class="eyebrow">COACH</p><h2>러닝 코치</h2></div><span class="rule-badge">RULE-BASED</span></div>
-        <p id="coachMessage" class="coach-copy">현재 조건을 분석하고 있습니다.</p>
-        <div id="alerts" class="alert-list"></div>
-      </article>
-    </section>
-
     <section class="card wide-section" aria-labelledby="weeklyTitle">
-      <div class="section-heading"><div><p class="eyebrow">7-DAY</p><h2 id="weeklyTitle">이번 주 러닝 날씨</h2></div></div>
+      <div class="section-heading weekly-heading"><div><p class="eyebrow">7-DAY</p><h2 id="weeklyTitle">이번 주 러닝 날씨</h2></div><p id="comparisonMessage" class="weekly-diff">오늘과 내일을 비교하는 중입니다.</p></div>
       <div id="weeklyCards" class="weekly-grid"></div>
       <div id="selectedDayDetail" class="selected-day-detail"></div>
+    </section>
+
+    <section class="card wide-section coach-section" aria-labelledby="coachTitle">
+      <div class="section-heading"><div><p class="eyebrow">COACH</p><h2 id="coachTitle">러닝 코치</h2></div><span class="rule-badge">RULE-BASED</span></div>
+      <p id="coachMessage" class="coach-copy">현재 조건을 분석하고 있습니다.</p>
+      <div id="alerts" class="alert-list"></div>
     </section>
 
     <section class="dashboard-grid split-grid">
@@ -167,6 +160,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=23"></script>
+  <script type="module" src="./app.js?v=24"></script>
 </body>
 </html>
