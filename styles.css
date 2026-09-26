@@ -37,6 +37,13 @@
 .weekly-diff[data-trend="up"]{background:#e7f3ff;color:#075da8}
 .weekly-diff[data-trend="down"]{background:#fff7d6;color:#795900}
 .coach-section .coach-copy{margin-bottom:0}
+.coach-insights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+.coach-insight{display:flex;flex-direction:column;gap:5px;min-width:0;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.coach-insight>span{color:var(--muted);font-size:.73rem;font-weight:750}
+.coach-insight>strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}
+.coach-insight>small{color:var(--muted);font-size:.75rem;line-height:1.45}
+.coach-section .alert-list{margin-top:16px}
+@media(max-width:700px){.coach-insights{grid-template-columns:1fr;gap:9px;margin:16px 0}.coach-section .alert-list{margin-top:14px}}
 .condition-good{background:#e7f3ff!important;color:#075da8}.condition-normal{background:#eaf8ee!important;color:#14753a}.condition-bad{background:#fff7d6!important;color:#8a6500}.condition-very-bad{background:#ffe8e8!important;color:#aa1f1f}.condition-unknown{background:var(--surface)!important;color:var(--muted)}
 .hero[data-condition="good"],.current-card[data-condition="good"]{background:linear-gradient(120deg,var(--surface) 35%,#e7f3ff)}
 .hero[data-condition="normal"],.current-card[data-condition="normal"]{background:linear-gradient(120deg,var(--surface) 35%,#eaf8ee)}
