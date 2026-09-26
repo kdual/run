@@ -8,7 +8,7 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=21">
+  <link rel="stylesheet" href="./styles.css?v=22">
   <link rel="stylesheet" href="./responsive.css?v=20">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
@@ -50,31 +50,32 @@
         <div class="hero-weather"><span>체감</span><strong id="heroFeels">--°</strong></div>
         <div class="hero-weather"><span>습도</span><strong id="heroHumidity">--%</strong></div>
         <div class="hero-weather"><span>이슬점</span><strong id="heroDew">--°</strong></div>
-        <div class="best-now"><span>오늘 최고</span><strong id="todayBestScore">--점</strong><small id="todayBestTime">BEST TIME --:--</small></div>
+        <div class="best-now" aria-label="오늘의 러닝 점수와 추천 시간">
+          <div class="today-score-heading"><span>오늘의 러닝 점수</span><small id="updatedAt" class="updated">업데이트 대기</small></div>
+          <div class="today-score-value"><strong id="todayScore">--</strong><span>점</span><b id="todayGrade">분석 중</b></div>
+          <p id="todaySummary" class="muted">러닝 가능한 시간의 점수를 계산하고 있습니다.</p>
+          <div class="today-best-time"><span>가장 좋은 시간</span><strong id="todayBestTime">--:--</strong></div>
+        </div>
       </div>
     </section>
 
-    <section class="dashboard-grid primary-grid" aria-label="오늘 요약">
-      <article class="card">
-        <div class="section-heading"><div><p class="eyebrow">TODAY</p><h2>오늘의 러닝 점수</h2></div><span id="updatedAt" class="updated">업데이트 대기</span></div>
-        <div class="ring-wrap">
-          <div id="scoreRing" class="score-ring" aria-label="오늘 대표 러닝 점수"><strong id="todayScore">--</strong><span>/ 100</span></div>
-          <div><strong id="todayGrade">분석 중</strong><p id="todaySummary" class="muted">시간대별 조건을 확인하고 있습니다.</p></div>
-        </div>
-      </article>
-
-      <article class="card">
-        <div class="section-heading"><div><p class="eyebrow">BEST TIME</p><h2>오늘 추천 시간 TOP 3</h2></div></div>
+    <section class="summary-sections" aria-label="오늘의 러닝 환경">
+      <article class="card best-times-card" aria-labelledby="bestTimesTitle">
+        <div class="section-heading"><div><p class="eyebrow">BEST TIME</p><h2 id="bestTimesTitle">오늘 추천 시간 TOP 3</h2></div></div>
         <div class="duration-picker" role="group" aria-label="러닝 시간"><button type="button" data-duration="30">30분</button><button type="button" data-duration="60">60분</button><button type="button" data-duration="120">롱런 120분</button></div>
         <ol id="bestTimes" class="best-list" aria-live="polite">
           <li class="skeleton-row"></li><li class="skeleton-row"></li><li class="skeleton-row"></li>
         </ol>
       </article>
 
-      <article id="currentWeatherCard" class="card current-card">
-        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2><small id="observationSource" class="data-source">기상청 생활기상지수·에어코리아 연결 중</small></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
+      <article id="currentWeatherCard" class="card current-card" aria-labelledby="currentWeatherTitle">
+        <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2 id="currentWeatherTitle">현재 날씨</h2><small id="observationSource" class="data-source">기상청 생활기상지수·에어코리아 연결 중</small></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
         <div id="weatherMetrics" class="metric-grid"></div>
         <div class="source-details"><span id="airSourceDetail">대기 측정소 확인 중</span><span id="forecastSourceDetail">미래 대기질 예보 확인 중</span></div>
+      </article>
+
+      <article class="card sun-card" aria-labelledby="sunCardTitle">
+        <div class="section-heading"><div><p class="eyebrow">DAYLIGHT</p><h2 id="sunCardTitle">일출 · 일몰과 박명</h2></div></div>
         <div class="sun-timeline" aria-label="오늘의 일출, 일몰, 박명 시각">
           <div class="sun-period"><h3>🌤 새벽 · 일출</h3><div class="sun-events">
             <div><span>첫빛 <small>천문박명 시작</small></span><strong id="astronomicalDawn">--:--</strong></div>
@@ -166,6 +167,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=21"></script>
+  <script type="module" src="./app.js?v=22"></script>
 </body>
 </html>
