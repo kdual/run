@@ -26,18 +26,21 @@ export function calculateRunningScore(c = {}) {
   return Math.round(clamp(100 - penalty));
 }
 
-export function mergeHourly(weather, air) {
+export function mergeHourly(weather, air, forecastData = null) {
   const airDate=air?.current?.measured_at?.slice(0,10);
-  const airForecast=new Map((air?.daily||[]).map(row=>[row.date,row]));
+  const airForecast=new Map((forecastData?.daily||air?.daily||[]).map(row=>[row.date,row]));
   return (weather.hourly.time || []).map((time, i) => {
     const row = { time };
     for (const [key, values] of Object.entries(weather.hourly)) if (key !== 'time') row[key] = values[i];
     const date=dateOnly(time);
-    if(air?.current&&date===airDate){
+    const measuredHour=Date.parse(String(air?.current?.measured_at||'').replace(' ','T')+':00+09:00');
+    const forecastHour=Date.parse(`${time}:00+09:00`);
+    if(air?.current&&date===airDate&&Number.isFinite(measuredHour)&&Math.abs(forecastHour-measuredHour)<=3600000){
       row.pm2_5=air.current.pm2_5;row.pm10=air.current.pm10;row.air_quality_index=air.current.air_quality_index;row.air_quality_estimated=false;
     }else{
       const forecast=airForecast.get(date);
-      row.pm2_5=forecast?.pm2_5??null;row.pm10=forecast?.pm10??null;row.air_quality_index=airGradeIndex(forecast?.pm2_5_grade,forecast?.pm10_grade);row.air_quality_estimated=Boolean(forecast);
+      row.pm2_5=null;row.pm10=null;row.air_quality_index=airGradeIndex(forecast?.pm2_5_grade,forecast?.pm10_grade);row.air_quality_estimated=Boolean(forecast?.pm2_5_grade||forecast?.pm10_grade);
+      row.air_forecast_grade=forecast?.pm2_5_grade||forecast?.pm10_grade||null;
     }
     row.score = calculateRunningScore(row);
     return row;
@@ -50,10 +53,15 @@ function airGradeIndex(pm25,pm10){
   return values.length?Math.max(...values):null;
 }
 
-export function currentConditions(weather, hourly) {
+export function currentConditions(weather, hourly, air = null) {
   const c = { ...weather.current };
   const nearest = hourly.reduce((best, row) => Math.abs(new Date(row.time) - new Date(weather.current.time)) < Math.abs(new Date(best.time) - new Date(weather.current.time)) ? row : best, hourly[0]);
-  for (const key of ['precipitation_probability','uv_index','air_stagnation_index','pm2_5','pm10','air_quality_index','air_quality_estimated','visibility']) c[key] = nearest?.[key] ?? null;
+  for (const key of ['precipitation_probability','uv_index','air_stagnation_index','visibility']) c[key] = nearest?.[key] ?? null;
+  const stamp=String(air?.current?.measured_at||'').replace(' ','T');
+  const measured=Date.parse(`${stamp}:00+09:00`);
+  const fresh=Number.isFinite(measured)&&Math.abs(Date.now()-measured)<3*3600000;
+  for(const key of ['pm2_5','pm10','air_quality_index'])c[key]=fresh?air?.current?.[key]??null:null;
+  c.air_quality_estimated=false;
   c.score = calculateRunningScore(c);
   return c;
 }
@@ -66,17 +74,18 @@ export function dailyScore(rows) {
   return eligible.length ? Math.round(eligible.reduce((s,r)=>s+r.score,0)/eligible.length) : null;
 }
 
-export function findBestRunningTimes(rows, count = 3) {
+export function findBestRunningTimes(rows, count = 3, durationMinutes = 120) {
   const eligible = runnableRows(rows);
   const blocks = eligible.map((row, i) => {
     const next = eligible[i+1];
     const consecutive = next && new Date(next.time)-new Date(row.time) === 3600000;
-    const score = consecutive ? Math.round((row.score + next.score)/2) : row.score;
-    return { start: row.time, end: consecutive ? next.time : row.time, score, duration: consecutive ? 2 : 1 };
-  }).sort((a,b)=>b.score-a.score || b.duration-a.duration);
+    if(durationMinutes===120&&!consecutive)return null;
+    const score = durationMinutes===120 ? Math.round((row.score + next.score)/2) : row.score;
+    return { start: row.time, end: durationMinutes===120 ? next.time : row.time, score, durationMinutes, duration:durationMinutes/60 };
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
   const chosen=[];
   for (const block of blocks) {
-    const overlap = chosen.some(c => dateOnly(c.start) === dateOnly(block.start) && Math.abs(new Date(c.start)-new Date(block.start)) < 7200000);
+    const overlap = chosen.some(c => dateOnly(c.start) === dateOnly(block.start) && Math.abs(Date.parse(`${c.start}:00+09:00`)-Date.parse(`${block.start}:00+09:00`)) < Math.max(3600000,durationMinutes*60000));
     if (!overlap) chosen.push(block);
     if (chosen.length === count) break;
   }

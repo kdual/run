@@ -34,6 +34,8 @@ export default {
       if (url.pathname === '/weather/current') return currentRoute(url, env, headers);
       if (url.pathname === '/weather') return weatherRoute(url, env, headers);
       if (url.pathname === '/air') return airRoute(url, env, headers);
+      if (url.pathname === '/air/forecast') return cachedPublicRoute(request, url, env, headers, airForecastRoute);
+      if (url.pathname === '/air/alerts') return cachedPublicRoute(request, url, env, headers, airAlertsRoute);
 
       return json({ ok: false, error: 'NOT_FOUND' }, 404, headers);
     } catch (error) {
@@ -99,6 +101,7 @@ async function airRoute(url, env, headers) {
   const items = normalizeItems(currentData?.response?.body?.items);
   let match = selectStation(items, stationName, districtName);
   let nearestStation = null;
+  let selectedDistance = null;
   let stationListResult = { status: 'skipped' };
   const selectedAirCount = airMeasurementCount(match.item);
   const selectedHasCompletePm = hasCompletePmMeasurement(match.item);
@@ -112,9 +115,10 @@ async function airRoute(url, env, headers) {
     nearestStation = nearest?.station || findNearestStation(stations, latitude, longitude);
     if (nearest?.item && (hasCompletePmMeasurement(nearest.item) || nearest.measurementCount > selectedAirCount)) {
       match = { item: nearest.item, type: match.item ? 'nearest-with-complete-pm' : 'nearest-coordinate' };
+      selectedDistance = round(nearest.distance, 1);
     } else if (!match.item && nearestStation) {
       const nearestMatch = selectStation(items, nearestStation.stationName, districtName);
-      if (nearestMatch.item) match = { ...nearestMatch, type: 'nearest-coordinate' };
+      if (nearestMatch.item) { match = { ...nearestMatch, type: 'nearest-coordinate' }; selectedDistance = nearestStation.distance_km; }
     }
   }
   const selected = match.item;
@@ -137,10 +141,54 @@ async function airRoute(url, env, headers) {
     requested_district: districtName || null,
     station_match: match.type,
     nearest_station: nearestStation?.stationName || null,
+    station_distance_km: selectedDistance,
     station_lookup: stationListResult.status,
     current,
     daily: []
   }, 200, { ...headers, 'Cache-Control': 'public, max-age=900' });
+}
+
+async function cachedPublicRoute(request, url, env, headers, handler) {
+  const cache = caches.default;
+  const cached = await cache.match(request);
+  if (cached) return new Response(cached.body, { status: cached.status, headers: { ...Object.fromEntries(cached.headers), ...headers } });
+  const response = await handler(url, env, headers);
+  if (response.ok) await cache.put(request, response.clone());
+  return response;
+}
+
+async function airForecastRoute(url, env, headers) {
+  const sido = normalizeSido(url.searchParams.get('sidoName') || '서울');
+  const [pm25, pm10] = await Promise.allSettled(['PM25', 'PM10'].map(code => fetchAirForecast(code, env.DATA_GO_KR_SERVICE_KEY)));
+  const days = new Map();
+  for (const [key, result] of [['pm2_5_grade', pm25], ['pm10_grade', pm10]]) {
+    if (result.status !== 'fulfilled') continue;
+    for (const item of result.value) {
+      const date = String(item.informData || '').slice(0, 10);
+      const grade = gradeForRegion(item.informGrade, sido);
+      if (!/^\d{4}-\d\d-\d\d$/.test(date) || !grade) continue;
+      days.set(date, { ...days.get(date), date, [key]: grade, issued_at: item.dataTime || null });
+    }
+  }
+  return json({ source: '에어코리아 권역별 미세먼지 일일 예보', sido_name: sido, daily: [...days.values()].sort((a,b) => a.date.localeCompare(b.date)), available: pm25.status === 'fulfilled' || pm10.status === 'fulfilled' }, 200, { ...headers, 'Cache-Control': 'public, max-age=3600, s-maxage=3600' });
+}
+
+async function airAlertsRoute(url, env, headers) {
+  const sido = normalizeSido(url.searchParams.get('sidoName') || '서울');
+  const district = String(url.searchParams.get('districtName') || '').trim();
+  const year = kstDateParts().date.slice(0, 4);
+  const endpoint = dataGoUrl('https://apis.data.go.kr/B552584/UlfptcaAlarmInqireSvc/getUlfptcaAlarmInfo', env.DATA_GO_KR_SERVICE_KEY, { returnType: 'json', year, numOfRows: 500, pageNo: 1 });
+  const data = await fetchJson(endpoint, '에어코리아 미세먼지 경보');
+  assertPublicData(data, '에어코리아 미세먼지 경보');
+  const today = kstDateParts().dateDashed;
+  const alerts = normalizeItems(data?.response?.body?.items).filter(item => {
+    const area = String(item.districtName || '');
+    const place = String(item.moveName || '');
+    const regionMatches = normalizeSido(area) === sido || area.includes(sido) || normalizeSido(place) === sido;
+    const districtMatches = !district || !place || place.includes(district) || area.includes(district);
+    return regionMatches && districtMatches && !String(item.clearDate || '').trim() && String(item.issueDate || '') >= today;
+  }).map(item => ({ pollutant: item.itemCode, level: item.issueGbn, region: item.moveName || item.districtName, issued_at: `${item.issueDate || ''} ${item.issueTime || ''}`.trim() }));
+  return json({ source: '에어코리아 미세먼지 경보 발령 현황', alerts, checked_at: new Date().toISOString() }, 200, { ...headers, 'Cache-Control': 'public, max-age=900, s-maxage=900' });
 }
 
 async function fetchAirStations(sidoName, districtName, key) {
@@ -607,12 +655,14 @@ function findNearestMeasurement(stations, items, latitude, longitude) {
     if (!isKoreanCoordinate(lat, lon) || !station.stationName) continue;
     const item = itemByName.get(cleanStationName(station.stationName));
     if (!hasAirMeasurement(item)) continue;
+    const distance = haversineKm(latitude, longitude, lat, lon);
+    if (distance > 25) continue;
     candidates.push({
       station,
       item,
       measurementCount: airMeasurementCount(item),
       completePm: hasCompletePmMeasurement(item),
-      distance: haversineKm(latitude, longitude, lat, lon)
+      distance
     });
   }
   candidates.sort((a, b) => Number(b.completePm) - Number(a.completePm) || b.measurementCount - a.measurementCount || a.distance - b.distance);
