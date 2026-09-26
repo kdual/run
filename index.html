@@ -8,7 +8,7 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=20">
+  <link rel="stylesheet" href="./styles.css?v=21">
   <link rel="stylesheet" href="./responsive.css?v=20">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
@@ -75,8 +75,20 @@
         <div class="section-heading"><div><p class="eyebrow">CURRENT</p><h2>현재 날씨</h2><small id="observationSource" class="data-source">기상청 생활기상지수·에어코리아 연결 중</small></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
         <div id="weatherMetrics" class="metric-grid"></div>
         <div class="source-details"><span id="airSourceDetail">대기 측정소 확인 중</span><span id="forecastSourceDetail">미래 대기질 예보 확인 중</span></div>
-        <div class="sun-row"><span>☀ 일출 <strong id="sunrise">--:--</strong></span><span>◐ 일몰 <strong id="sunset">--:--</strong></span></div>
+        <div class="sun-timeline" aria-label="오늘의 일출, 일몰, 박명 시각">
+          <div class="sun-period"><h3>🌤 새벽 · 일출</h3><div class="sun-events">
+            <div><span>첫빛 <small>천문박명 시작</small></span><strong id="astronomicalDawn">--:--</strong></div>
+            <div><span>항해박명 <small>BMNT</small></span><strong id="nauticalDawn">--:--</strong></div>
+            <div><span>일출</span><strong id="sunrise">--:--</strong></div>
+          </div></div>
+          <div class="sun-period"><h3>🌙 일몰 · 밤</h3><div class="sun-events">
+            <div><span>일몰</span><strong id="sunset">--:--</strong></div>
+            <div><span>항해박명 종료 <small>EENT</small></span><strong id="nauticalDusk">--:--</strong></div>
+            <div><span>완전한 어둠 <small>천문박명 종료</small></span><strong id="astronomicalDusk">--:--</strong></div>
+          </div></div>
+        </div>
         <p id="sunStatus" class="muted"></p>
+        <p class="sun-note">박명은 태양 위치로 계산한 예상 시각입니다. 구름·지형·도심 조명에 따라 실제 밝기는 다릅니다.</p>
       </article>
     </section>
 
@@ -154,6 +166,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=20"></script>
+  <script type="module" src="./app.js?v=21"></script>
 </body>
 </html>

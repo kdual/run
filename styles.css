@@ -98,3 +98,16 @@ dialog{max-height:calc(100dvh - 28px);overflow:auto}
 @media(max-width:700px){.compare-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.compare-divider{display:none}.compare-panel{padding:11px 8px}.compare-panel>strong{font-size:2.2rem}.week-detail-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-grid{grid-template-columns:repeat(7,minmax(104px,1fr));scroll-snap-type:x mandatory}.day-card{scroll-snap-align:start}}
 
 .advisory-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px}.advisory-strip .official-alerts{margin:0}.advisory-strip>a{color:var(--primary);font-size:.75rem;font-weight:800;white-space:nowrap}
+
+/* Dawn and dusk milestones in the current weather card */
+.sun-timeline{display:grid;gap:12px;margin-top:16px}
+.sun-period{min-width:0;padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--surface)}
+.sun-period h3{margin:0 0 9px;color:var(--primary);font-size:.77rem;letter-spacing:.03em}
+.sun-events{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.sun-events>div{display:flex;flex-direction:column;justify-content:space-between;gap:3px;min-width:0;padding:9px 7px;border-radius:9px;background:var(--surface-2)}
+.sun-events span{font-size:.72rem;color:var(--text);font-weight:700;line-height:1.25;word-break:keep-all}
+.sun-events small{display:block;margin-top:2px;color:var(--muted);font-size:.62rem;font-weight:500}
+.sun-events strong{font-size:1.05rem;white-space:nowrap;line-height:1.2}
+.current-card #sunStatus{margin:11px 0 4px}
+.sun-note{color:var(--muted);font-size:.66rem;line-height:1.45;margin:4px 0 0;word-break:keep-all}
+@media(max-width:390px){.sun-period{padding:10px}.sun-events{gap:4px}.sun-events>div{padding:8px 5px}.sun-events strong{font-size:.96rem}}

@@ -410,7 +410,7 @@ function buildDaily(rows, latitude, longitude, days) {
   const today = kstDateParts().dateDashed;
   const dates = Array.from({ length: days }, (_, index) => addDays(today, index));
   const grouped = new Map(dates.map(date => [date, rows.filter(row => row.time.startsWith(date))]));
-  const columns = { time: [], weather_code: [], sunrise: [], sunset: [], uv_index_max: [], air_stagnation_index_max: [], precipitation_probability_max: [], temperature_2m_max: [], temperature_2m_min: [] };
+  const columns = { time: [], weather_code: [], sunrise: [], sunset: [], astronomical_dawn: [], nautical_dawn: [], nautical_dusk: [], astronomical_dusk: [], uv_index_max: [], air_stagnation_index_max: [], precipitation_probability_max: [], temperature_2m_max: [], temperature_2m_min: [] };
   for (const date of dates) {
     const dayRows = grouped.get(date) || [];
     const temps = dayRows.map(row => row.temperature_2m).filter(Number.isFinite);
@@ -423,6 +423,7 @@ function buildDaily(rows, latitude, longitude, days) {
     columns.weather_code.push(noon?.weather_code ?? null);
     columns.sunrise.push(sun.sunrise);
     columns.sunset.push(sun.sunset);
+    for (const key of ['astronomical_dawn','nautical_dawn','nautical_dusk','astronomical_dusk']) columns[key].push(sun[key]);
     columns.uv_index_max.push(uvValues.length ? Math.max(...uvValues) : null);
     columns.air_stagnation_index_max.push(stagnationValues.length ? Math.max(...stagnationValues) : null);
     columns.precipitation_probability_max.push(pops.length ? Math.max(...pops) : null);
@@ -709,15 +710,26 @@ function addDays(date, amount) {
 // NOAA solar calculation. It is an astronomical calculation, not another weather provider.
 function sunriseSunset(date, latitude, longitude) {
   const day = Math.floor((Date.parse(`${date}T00:00:00Z`) - Date.UTC(new Date(date).getUTCFullYear(), 0, 0)) / 86400000);
-  const gamma = 2 * Math.PI / 365 * (day - 1);
+  const gamma = 2 * Math.PI / (new Date(Date.UTC(new Date(date).getUTCFullYear(), 1, 29)).getUTCMonth() === 1 ? 366 : 365) * (day - 1);
   const equation = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma) - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma));
   const declination = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma) - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
   const latRad = latitude * Math.PI / 180;
-  const zenith = 90.833 * Math.PI / 180;
-  const hourAngle = Math.acos(Math.max(-1, Math.min(1, (Math.cos(zenith) / (Math.cos(latRad) * Math.cos(declination))) - Math.tan(latRad) * Math.tan(declination))));
-  const delta = hourAngle * 180 / Math.PI * 4;
   const solarNoon = 720 - 4 * longitude - equation + 540;
-  return { sunrise: minutesToIso(date, solarNoon - delta), sunset: minutesToIso(date, solarNoon + delta) };
+  const boundary = (zenithDegrees, morning) => {
+    const zenith = zenithDegrees * Math.PI / 180;
+    const cosine = Math.cos(zenith) / (Math.cos(latRad) * Math.cos(declination)) - Math.tan(latRad) * Math.tan(declination);
+    if (cosine < -1 || cosine > 1) return null;
+    const delta = Math.acos(cosine) * 180 / Math.PI * 4;
+    return minutesToIso(date, solarNoon + (morning ? -delta : delta));
+  };
+  return {
+    astronomical_dawn: boundary(108, true),
+    nautical_dawn: boundary(102, true),
+    sunrise: boundary(90.833, true),
+    sunset: boundary(90.833, false),
+    nautical_dusk: boundary(102, false),
+    astronomical_dusk: boundary(108, false)
+  };
 }
 function minutesToIso(date, minutes) {
   const normalized = ((Math.round(minutes) % 1440) + 1440) % 1440;
