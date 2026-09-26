@@ -110,7 +110,21 @@ function renderComparison(today,tomorrow){
  $('comparisonMessage').textContent=diff===null?'오늘·내일 비교 예보 없음':diff===0?'오늘과 내일 점수가 같습니다':`내일은 오늘보다 ${Math.abs(diff)}점 ${diff>0?'높습니다':'낮습니다'}`;
  $('comparisonMessage').dataset.trend=diff===null?'unknown':diff>0?'up':diff<0?'down':'same';
 }
-function renderCoach(c,best){$('coachMessage').textContent=coachMessage(c,best);const official=state.data?.officialAlerts?.alerts||[];$('officialAlerts').innerHTML=official.length?official.map(a=>`<span class="alert-chip">에어코리아 ${escapeHtml(a.pollutant||'미세먼지')} ${escapeHtml(a.level||'경보')} · ${escapeHtml(a.region||'해당 권역')}</span>`).join(''):state.data?.officialAlerts?'<span class="muted">조회된 미세먼지 경보 없음 (에어코리아)</span>':'<span class="muted">미세먼지 경보 조회 불가 · 발령 여부 미확인</span>';$('alerts').innerHTML=environmentAlerts(c).map(a=>`<span class="alert-chip">${a}</span>`).join('');}
+function renderCoach(c,best){
+ $('coachMessage').textContent=coachMessage(c,best);
+ const airPoor=(Number.isFinite(c.pm2_5)&&c.pm2_5>35)||(Number.isFinite(c.air_quality_index)&&c.air_quality_index>100);
+ const intensity=c.score<40?'실내 운동 또는 휴식':airPoor||c.score<70?'짧고 가벼운 러닝':c.score<85?'대화 가능한 편안한 페이스':'평소 계획한 강도';
+ const intensityDetail=c.score<40?'현재 환경 점수가 낮아 야외 러닝에 신중하세요.':airPoor?'현재 측정된 대기질을 고려하세요.':c.score<70?'강도보다 편안한 움직임을 우선하세요.':c.score<85?'몸 상태에 맞춰 페이스를 조절하세요.':'날씨 외에 몸 상태도 확인하세요.';
+ const difference=best?best.score-c.score:null;
+ const timing=best?(difference>=5?`${timeOnly(best.start)} 이후 검토`:difference<=-5?'지금 출발도 고려':'시간 차이 크지 않음'):'남은 예보 없음';
+ const timingDetail=best?(difference>=5?`선택한 ${state.duration}분 구간의 예보 점수가 현재보다 ${difference}점 높습니다.`:difference<=-5?`현재 점수가 추천 구간보다 ${Math.abs(difference)}점 높습니다.`:`현재와 추천 구간의 예상 점수 차이는 ${Math.abs(difference)}점입니다.`):'남은 러닝 가능 시간대의 예보를 확인할 수 없습니다.';
+ const reasons=Object.entries(runningScoreDeductions(c)).sort((a,b)=>b[1]-a[1]);
+ const primary=reasons[0],factorInfo={temperature:['체감온도','더운 시간대에는 페이스를 낮춰 보세요.'],dewPoint:['이슬점','후반부 체감 부담을 살펴보세요.'],humidity:['습도','땀 배출이 불편한지 살펴보세요.'],rain:['비','노면 상태를 확인하세요.'],wind:['바람','바람이 강한 구간을 확인하세요.'],airQuality:['대기질','측정된 미세먼지 수치를 다시 확인하세요.'],uv:['자외선','노출이 적은 시간대를 고려하세요.']};
+ const factor=primary&&primary[1]>=1?factorInfo[primary[0]]:null;
+ const insights=[['권장 강도',intensity,intensityDetail],['지금 또는 나중',timing,timingDetail],['가장 큰 환경 변수',factor?`${factor[0]} −${Math.round(primary[1])}점`:'큰 감점 없음',factor?factor[1]:'점수에 큰 영향을 준 날씨 요인이 없습니다.']];
+ $('coachInsights').innerHTML=insights.map(([label,value,detail])=>`<div class="coach-insight"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
+ const official=state.data?.officialAlerts?.alerts||[];$('officialAlerts').innerHTML=official.length?official.map(a=>`<span class="alert-chip">에어코리아 ${escapeHtml(a.pollutant||'미세먼지')} ${escapeHtml(a.level||'경보')} · ${escapeHtml(a.region||'해당 권역')}</span>`).join(''):state.data?.officialAlerts?'<span class="muted">조회된 미세먼지 경보 없음 (에어코리아)</span>':'<span class="muted">미세먼지 경보 조회 불가 · 발령 여부 미확인</span>';$('alerts').innerHTML=environmentAlerts(c).map(a=>`<span class="alert-chip">${escapeHtml(a)}</span>`).join('');
+}
 
 function renderWeekly(w,hourly){
  const today=currentSeoulDate(),todayIndex=Math.max(0,w.daily.time.indexOf(today)),scores=w.daily.time.map(date=>dailyScore(rowsForDate(hourly,date))),finite=scores.filter(Number.isFinite),max=finite.length?Math.max(...finite):null;
