@@ -33,7 +33,7 @@ export function renderHourlyChart(container, rows, onSelect, { compact=false }={
     <polygon class="score-area" points="${area}"></polygon><polyline class="score-line-shadow" points="${points}"></polyline><polyline class="score-line" points="${points}"></polyline>
     <line class="selection-guide" x1="0" y1="${pad.t}" x2="0" y2="${h-pad.b}" hidden></line>
     ${rows.map((r,i)=>`<circle class="point-hit" data-index="${i}" cx="${x(i)}" cy="${y(r.score)}" r="15"></circle>`).join('')}
-    ${rows.map((r,i)=>`<circle class="point" tabindex="0" role="button" aria-label="${timeOnly(r.time)} ${r.score}점" data-index="${i}" cx="${x(i)}" cy="${y(r.score)}" r="4.5"></circle>`).join('')}
+    ${rows.map((r,i)=>`<circle class="point" tabindex="0" role="button" aria-label="${timeOnly(r.time)} ${r.score}점${r.observed?' 관측 반영':' 예보'}" data-index="${i}" cx="${x(i)}" cy="${y(r.score)}" r="4.5"></circle>`).join('')}
     ${rows.map((r,i)=>({r,i})).filter(({i})=>i%labelStep===0).map(({r,i})=>`<text class="time-label" text-anchor="middle" x="${x(i)}" y="${h-12}">${timeOnly(r.time)}</text>`).join('')}
   </svg><div class="chart-tooltip" role="status" hidden></div></div>`;
   const canvas=container.querySelector('.chart-canvas');
@@ -44,7 +44,7 @@ export function renderHourlyChart(container, rows, onSelect, { compact=false }={
     const index=Number(point.dataset.index),row=rows[index];
     container.querySelectorAll('.point').forEach(p=>p.classList.toggle('selected',Number(p.dataset.index)===index));
     guide.hidden=false;guide.setAttribute('x1',x(index));guide.setAttribute('x2',x(index));
-    tooltip.innerHTML=`<strong>${row.time.replace('T',' ')} (${weatherLabel(row.weather_code)})</strong><span><i class="tooltip-dot"></i>러닝 스코어: ${row.score}점</span><span>기온: ${number(row.temperature_2m)}°C (체감 ${number(row.apparent_temperature)}°C)</span><span>이슬점: ${number(row.dew_point_2m)}°C | 습도: ${number(row.relative_humidity_2m,0)}%</span><span>강수확률: ${number(row.precipitation_probability,0)}% | 풍속: ${number(row.wind_speed_10m)} km/h</span>`;
+    tooltip.innerHTML=`<strong>${row.time.replace('T',' ')} (${weatherLabel(row.weather_code)} · ${row.observed?'관측 반영':'예보'})</strong><span><i class="tooltip-dot"></i>러닝 스코어: ${row.score}점</span><span>기온: ${number(row.temperature_2m)}°C (체감 ${number(row.apparent_temperature)}°C)</span><span>이슬점: ${number(row.dew_point_2m)}°C | 습도: ${number(row.relative_humidity_2m,0)}%</span><span>강수확률: ${number(row.precipitation_probability,0)}% | 풍속: ${number(row.wind_speed_10m)} km/h</span>`;
     const tooltipWidth=Math.min(232,Math.max(190,w-16));
     const left=Math.min(w-tooltipWidth/2-8,Math.max(tooltipWidth/2+8,x(index)));
     tooltip.style.width=`${tooltipWidth}px`;
