@@ -8,7 +8,7 @@ export function coachMessage(c, best) {
   if (safe(c.precipitation_probability,0) >= 60 || safe(c.precipitation,0) >= 1) messages.push('비 가능성이 높아 짧은 Easy Run이 더 적합합니다.');
   if (safe(c.dew_point_2m,-20) >= 18) messages.push('이슬점이 높아 후반부 체감 부담이 커질 수 있습니다.');
   if (safe(c.apparent_temperature,0) >= 28) messages.push('체감온도가 높아 페이스를 낮추고 수분을 자주 보충하세요.');
-  if (runningScoreDeductions(c).sunExposure>=8) messages.push('낮 시간 직사광선 부담이 커 그늘이 있는 코스나 해가 약한 시간을 권합니다.');
+  if (runningScoreDeductions(c).sunExposure>=8) messages.push('낮 시간 햇빛 열부담이 예상되어 그늘이 있는 코스나 해가 약한 시간을 권합니다.');
   if (safe(c.wind_gusts_10m,0) >= 35) messages.push('돌풍이 강해 노출이 적은 왕복 코스를 권합니다.');
   if (!messages.length && c.score >= 85) messages.push('선선하고 큰 방해 요소가 없어 러닝하기 좋은 조건입니다.');
   else if (!messages.length) messages.push('무리하지 않는 강도로 달리기 무난한 조건입니다.');
@@ -27,7 +27,7 @@ export function runNowMessage(c, best) {
 
 export function environmentAlerts(c) {
   const list=[];
-  if (runningScoreDeductions(c).sunExposure>=8) list.push('직사광선 · 그늘 없는 코스는 더 덥게 느껴질 수 있음');
+  if (runningScoreDeductions(c).sunExposure>=8) list.push('햇빛 열부담(추정) · 그늘 없는 코스는 더 덥게 느껴질 수 있음');
   if (safe(c.apparent_temperature,0)>=28) list.push('고온 · 수분 보충 주의');
   if (safe(c.relative_humidity_2m,0)>=80) list.push('높은 습도 · 체열 배출 부담');
   if (safe(c.dew_point_2m,-20)>=18) list.push('높은 이슬점 · 체감 부담 증가');
