@@ -74,6 +74,14 @@ export function currentConditions(weather, hourly, air = null) {
   return c;
 }
 
+export function includeCurrentObservation(hourly, current) {
+  const observationHour=String(current?.time||'').slice(0,13)+':00';
+  return hourly.map(row=>row.time===observationHour?{
+    ...row,...current,time:row.time,score:current.score,
+    observed:true,air_quality_estimated:false,air_forecast_grade:null
+  }:row);
+}
+
 export function rowsForDate(hourly, date) { return hourly.filter(r => dateOnly(r.time) === date); }
 export function runnableRows(rows) { return rows.filter(r => { const h = Number(r.time.slice(11,13)); return h >= APP_CONFIG.runningHours.start && h <= APP_CONFIG.runningHours.end; }); }
 
