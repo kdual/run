@@ -99,7 +99,8 @@
       <div id="hourlyChart" class="chart" role="img" aria-label="시간대별 러닝 점수 선 그래프"></div>
       <button id="hourlyNextDay" class="chart-next-day" type="button" hidden>내일 00:00 이후 시간대 보기 <span aria-hidden="true">→</span></button>
       <div id="hourlyDetail" class="hourly-detail" aria-live="polite">그래프의 시간대를 선택하면 세부 조건을 확인할 수 있습니다.</div>
-      <div id="hourlyTextAlternative" class="sr-only"></div>
+        <div id="hourlyTextAlternative" class="sr-only"></div>
+        <p id="hourlyDataNote" class="muted">시간대별 점수의 자료 기준을 확인하는 중입니다.</p>
     </section>
 
     <section class="card wide-section" aria-labelledby="weeklyTitle">
@@ -162,6 +163,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=31"></script>
+  <script type="module" src="./app.js?v=32"></script>
 </body>
 </html>
