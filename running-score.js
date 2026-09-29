@@ -18,8 +18,8 @@ export function runningScoreDeductions(c = {}) {
   const windP = Math.max(Number.isFinite(c.wind_speed_10m) ? clamp((c.wind_speed_10m - 14) / 28) : 0, Number.isFinite(c.wind_gusts_10m) ? clamp((c.wind_gusts_10m - 25) / 40) : 0);
   const airP = Math.max(Number.isFinite(c.pm2_5) ? clamp((c.pm2_5 - 15) / 60) : 0, Number.isFinite(c.air_quality_index) ? clamp((c.air_quality_index - 50) / 200) : 0);
   const uvP = Number.isFinite(c.uv_index) && c.is_day !== 0 ? clamp((c.uv_index - 3) / 7) : 0;
-  // The apparent-temperature formula has no solar-radiation term. Treat the route as unshaded;
-  // UV is a sunlight proxy when available, otherwise use daytime cloud cover and local hour.
+  // UV reflects skin exposure, not all solar heat. Estimate heat exposure on an unshaded route
+  // from both UV and daylight/cloud conditions; a rounded UV of 0 can coexist with visible sun.
   const hour=Number(String(c.time||'').slice(11,13));
   const daylightFactor=Number.isFinite(hour)?clamp((hour-6)/4,0,1)*clamp((19-hour)/4,0,1):0;
   const uvSun=Number.isFinite(c.uv_index)?clamp((c.uv_index-1)/7,0,1):0;
