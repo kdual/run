@@ -18,7 +18,15 @@ export function runningScoreDeductions(c = {}) {
   const windP = Math.max(Number.isFinite(c.wind_speed_10m) ? clamp((c.wind_speed_10m - 14) / 28) : 0, Number.isFinite(c.wind_gusts_10m) ? clamp((c.wind_gusts_10m - 25) / 40) : 0);
   const airP = Math.max(Number.isFinite(c.pm2_5) ? clamp((c.pm2_5 - 15) / 60) : 0, Number.isFinite(c.air_quality_index) ? clamp((c.air_quality_index - 50) / 200) : 0);
   const uvP = Number.isFinite(c.uv_index) && c.is_day !== 0 ? clamp((c.uv_index - 3) / 7) : 0;
-  return { temperature:tempP*w.temperature, dewPoint:dewP*w.dewPoint, humidity:humidityP*w.humidity, rain:rainP*w.rain, wind:windP*w.wind, airQuality:airP*w.airQuality, uv:uvP*w.uv };
+  // The apparent-temperature formula has no solar-radiation term. Treat the route as unshaded;
+  // UV is a sunlight proxy when available, otherwise use daytime cloud cover and local hour.
+  const hour=Number(String(c.time||'').slice(11,13));
+  const daylightFactor=Number.isFinite(hour)?clamp((hour-6)/4,0,1)*clamp((19-hour)/4,0,1):0;
+  const uvSun=Number.isFinite(c.uv_index)?clamp((c.uv_index-1)/7,0,1):0;
+  const skySun=Number.isFinite(c.cloud_cover)?clamp((100-c.cloud_cover)/90,0,1)*daylightFactor*.8:0;
+  const sunlight=Math.max(uvSun,skySun);
+  const sunExposure=c.is_day===1&&Number.isFinite(temp)?18*clamp((temp-20)/10,0,1)*sunlight:0;
+  return { temperature:tempP*w.temperature, sunExposure, dewPoint:dewP*w.dewPoint, humidity:humidityP*w.humidity, rain:rainP*w.rain, wind:windP*w.wind, airQuality:airP*w.airQuality, uv:uvP*w.uv };
 }
 
 export function calculateRunningScore(c = {}) {
