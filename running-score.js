@@ -74,11 +74,16 @@ export function currentConditions(weather, hourly, air = null) {
   return c;
 }
 
-export function includeCurrentObservation(hourly, current) {
-  const observationHour=String(current?.time||'').slice(0,13)+':00';
-  return hourly.map(row=>row.time===observationHour?{
+export function includeCurrentObservation(hourly, current, now = new Date()) {
+  const observationTime=String(current?.time||'');
+  const measuredAt=Date.parse(`${observationTime}:00+09:00`);
+  const age=now.getTime()-measuredAt;
+  if(!Number.isFinite(age)||age<0||age>2*3600000)return hourly;
+  const currentHour=new Date(now.getTime()+9*3600000).toISOString().slice(0,13)+':00';
+  return hourly.map(row=>row.time===currentHour?{
     ...row,...current,time:row.time,score:current.score,
-    observed:true,air_quality_estimated:false,air_forecast_grade:null
+    observed:true,observation_time:observationTime,
+    air_quality_estimated:false,air_forecast_grade:null
   }:row);
 }
 
