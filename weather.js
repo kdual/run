@@ -1,10 +1,10 @@
+import { requestJson } from './request.js?v=36';
 import { APP_CONFIG } from './running-score-config.js?v=14';
 
 export async function fetchWeather({ latitude, longitude, areaNo }, signal) {
   const params = new URLSearchParams({ latitude, longitude });
   if (/^\d{10}$/.test(String(areaNo || ''))) params.set('areaNo', areaNo);
-  const response = await fetch(`${APP_CONFIG.apiBaseUrl}/weather?${params}`, { signal, cache: 'no-store' });
-  const data = await response.json().catch(() => null);
+  const {response,data} = await requestJson(`${APP_CONFIG.apiBaseUrl}/weather?${params}`,signal);
   if (!response.ok || !data?.hourly || !data?.current) {
     throw new Error(data?.message || `기상청 날씨 API 오류 (${response.status})`);
   }

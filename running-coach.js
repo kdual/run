@@ -1,9 +1,11 @@
 import { safe } from './utils.js';
-import { runningScoreDeductions } from './running-score.js?v=31';
+import { runningScoreDeductions, poorAir } from './running-score.js?v=36';
 
 export function coachMessage(c, best) {
+  if(poorAir(c)&&!Number.isFinite(c.score))return '대기질이 좋지 않아 야외 고강도 러닝은 피하세요. 최신 기상 자료도 확인해 주세요.';
+  if(!Number.isFinite(c.score))return '기상 자료가 부족하거나 오래되어 점수를 계산할 수 없습니다. 최신 날씨를 확인해 주세요.';
   const messages=[];
-  if (safe(c.pm2_5,0) > 35 || safe(c.air_quality_index,0) > 100) messages.push('대기질이 좋지 않아 야외 고강도 러닝은 피하는 편이 좋습니다.');
+  if (poorAir(c)) messages.push('대기질이 좋지 않아 야외 고강도 러닝은 피하는 편이 좋습니다.');
   else if (safe(c.air_stagnation_index,0) >= 100) messages.push('대기정체 가능성이 매우 높아 달리기 전 최신 미세먼지 수치를 다시 확인하세요.');
   if (safe(c.precipitation_probability,0) >= 60 || safe(c.precipitation,0) >= 1) messages.push('비 가능성이 높아 짧은 Easy Run이 더 적합합니다.');
   if (safe(c.dew_point_2m,-20) >= 18) messages.push('이슬점이 높아 후반부 체감 부담이 커질 수 있습니다.');
@@ -17,6 +19,10 @@ export function coachMessage(c, best) {
 }
 
 export function runNowMessage(c, best) {
+  if(poorAir(c))return '대기질이 좋지 않아 야외 고강도 러닝은 권장하지 않습니다.';
+  if(!Number.isFinite(c.score))return '최신 기상 자료를 확인한 뒤 러닝 조건을 판단해 주세요.';
+  if(poorAir(c))return '대기질이 좋지 않아 야외 고강도 러닝은 권장하지 않습니다.';
+  if(c.score<40)return '현재는 실내 운동이나 휴식을 권합니다.';
   if (c.score >= 85) return '지금 러닝하기 좋은 조건입니다.';
   if (best && best.score >= c.score + 5) return `지금도 가능하지만 ${best.start.slice(11,16)} 이후가 더 좋은 조건입니다.`;
   if (safe(c.pm2_5,0)>35) return '미세먼지로 인해 야외 고강도 러닝은 권장하지 않습니다.';
@@ -27,12 +33,15 @@ export function runNowMessage(c, best) {
 
 export function environmentAlerts(c) {
   const list=[];
+  if(c.missing?.length)list.push(`자료 부족 · ${c.missing.join(', ')} 점수 반영 제한`);
   if (runningScoreDeductions(c).sunExposure>=8) list.push('햇빛 열부담(추정) · 그늘 없는 코스는 더 덥게 느껴질 수 있음');
   if (safe(c.apparent_temperature,0)>=28) list.push('고온 · 수분 보충 주의');
   if (safe(c.relative_humidity_2m,0)>=80) list.push('높은 습도 · 체열 배출 부담');
   if (safe(c.dew_point_2m,-20)>=18) list.push('높은 이슬점 · 체감 부담 증가');
   if (safe(c.uv_index,0)>=6 && c.is_day!==0) list.push('강한 UV · 자외선 차단 권장');
   if (safe(c.pm2_5,0)>35) list.push('PM2.5 높음 · 고강도 주의');
+  if (safe(c.pm10,0)>80) list.push('PM10 높음 · 고강도 주의');
+  if (safe(c.air_quality_index,0)>100) list.push('통합대기지수 높음 · 고강도 주의');
   if (safe(c.air_stagnation_index,0)>=100) list.push('대기정체 매우 높음 · 공기질 재확인');
   else if (safe(c.air_stagnation_index,0)>=75) list.push('대기정체 높음 · 오염물질 축적 가능');
   if (safe(c.wind_gusts_10m,0)>=35) list.push('강풍 · 바람 방향 고려');
@@ -66,6 +75,6 @@ export function gearAdvice(c) {
     if(c.uv_index>=6)extras.add('챙 있는 모자');
   }
   if(c.is_day===0)extras.add('반사밴드 · 조명');
-  if(safe(c.pm2_5,0)>35||safe(c.air_quality_index,0)>100)conditions.unshift('대기질 나쁨 · 실외 운동 전 확인');
+  if(poorAir(c))conditions.unshift('대기질 나쁨 · 실외 운동 전 확인');
   return {상의:top,하의:bottom,추가:[...extras].join(' · ')||'없음',환경:conditions.slice(0,2).join(' · ')||'특별한 환경 주의사항 없음'};
 }

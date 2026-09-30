@@ -25,3 +25,20 @@ export function solarTimes(date, latitude, longitude) {
     astronomical_dusk: boundary(108,false)
   };
 }
+
+/** Solar altitude estimate using the NOAA fractional-year equations, KST timestamps. */
+export function solarAltitude(time, latitude, longitude) {
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude))return null;
+  const instant=new Date(String(time).slice(0,16)+':00+09:00');
+  if(!Number.isFinite(instant.getTime()))return null;
+  const year=instant.getUTCFullYear(),hour=instant.getUTCHours()+instant.getUTCMinutes()/60;
+  const day=Math.floor((instant.getTime()-Date.UTC(year,0,1))/86400000)+1;
+  const days=new Date(Date.UTC(year,1,29)).getUTCMonth()===1?366:365;
+  const g=2*Math.PI/days*(day-1+(hour-12)/24);
+  const eq=229.18*(.000075+.001868*Math.cos(g)-.032077*Math.sin(g)-.014615*Math.cos(2*g)-.040849*Math.sin(2*g));
+  const dec=.006918-.399912*Math.cos(g)+.070257*Math.sin(g)-.006758*Math.cos(2*g)+.000907*Math.sin(2*g)-.002697*Math.cos(3*g)+.00148*Math.sin(3*g);
+  const solarMinutes=((hour*60+eq+4*longitude)%1440+1440)%1440;
+  const angle=(solarMinutes/4-180)*Math.PI/180,lat=latitude*Math.PI/180;
+  const sine=Math.sin(lat)*Math.sin(dec)+Math.cos(lat)*Math.cos(dec)*Math.cos(angle);
+  return Math.asin(Math.max(-1,Math.min(1,sine)))*180/Math.PI;
+}

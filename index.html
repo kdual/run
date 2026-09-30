@@ -8,7 +8,7 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=28">
+  <link rel="stylesheet" href="./styles.css?v=36">
   <link rel="stylesheet" href="./responsive.css?v=20">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
@@ -43,7 +43,10 @@
         </div>
         <div id="currentScoreFactors" class="factor-row" aria-label="현재 점수 감점 요인"></div>
         <p id="runNowMessage" class="hero-message">현재 러닝 환경을 분석하고 있습니다.</p>
-        <p id="scoreDisclaimer" class="fine-print">Running Score는 의학적 기준이 아닌 러닝 환경 참고지수입니다. 햇빛 열부담은 UV와 별개로 낮 시간·구름량·체감온도에서 추정합니다. UV가 0이어도 해가 떠 있으면 감점될 수 있으며, 실제 코스의 그늘은 반영하지 못합니다.</p>
+        <p id="scoreDataStatus" class="fine-print" role="status">점수 자료 확인 중</p>
+        <div class="score-context"><label for="routeShade">코스 그늘 조건</label><select id="routeShade"><option value="0">그늘 거의 없음</option><option value="0.5">그늘과 햇빛이 섞임</option><option value="0.85">그늘 많은 코스</option></select><small>선택한 조건으로 현재·시간별·추천 점수를 함께 비교합니다.</small></div>
+        <p id="scoreDisclaimer" class="fine-print">환경 비교를 위한 추정 점수이며 개인 체감과 일치하는지 검증되지 않았습니다. 체감온도는 그늘 기준 추정이고, 햇빛 열부담은 태양 위치·구름량·선택한 그늘 조건으로 추정합니다. 밤에도 더위와 습기 감점은 유지합니다.</p>
+        <details class="score-method"><summary>점수의 근거와 실제 체감 비교</summary><p>체감온도에는 기온·습도·바람이 이미 포함됩니다. 추가 습기 감점은 이슬점과 습도 중 큰 값 하나만 적용합니다. 햇빛 열부담과 UV는 별개이며, PM2.5·PM10·통합대기지수 중 큰 감점을 적용합니다.</p><p>0–100 변환 가중치와 등급은 러닝 환경 비교를 위한 설계값입니다. 임상·운동 실험으로 검증된 척도, WBGT, UTCI가 아닙니다. 운동 강도·적응도·복장·노면 복사열은 반영하지 못합니다. 극단적인 더위·추위는 감점이 멈추지 않도록 추가 부담을 적용합니다.</p><p><a href="https://www.bom.gov.au/info/thermal_stress/" target="_blank" rel="noopener">호주 기상청: 체감온도와 열부담의 범위</a></p><p>지금 직접 느껴본 러닝 환경과 점수를 비교해 기록하세요. 기록은 이 기기에만 저장되고 점수나 대기질 경고를 자동으로 바꾸지 않습니다.</p><div class="feel-buttons" role="group" aria-label="실제 체감 비교"><button type="button" data-feel="harder">점수보다 힘듦</button><button type="button" data-feel="similar">대체로 비슷함</button><button type="button" data-feel="easier">점수보다 편함</button></div><p id="feelSummary" class="fine-print" role="status">실제 체감 기록이 없습니다.</p><button id="clearFeels" type="button">체감 기록 지우기</button></details>
       </div>
       <div class="hero-side">
         <div class="hero-weather"><span>현재</span><strong id="heroTemp">--°</strong></div>
@@ -163,6 +166,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=34"></script>
+  <script type="module" src="./app.js?v=36"></script>
 </body>
 </html>

@@ -15,6 +15,7 @@ const number = (value, digits=1) => Number.isFinite(value) ? value.toFixed(digit
 
 export function renderHourlyChart(container, rows, onSelect, { compact=false }={}) {
   container._chartCleanup?.();
+  rows=rows.filter(r=>Number.isFinite(r.score));
   if (!rows.length) { container.innerHTML='<p class="muted">표시할 시간대 데이터가 없습니다.</p>'; return; }
   const h=236,pad={l:38,r:18,t:25,b:38};
   const availableWidth=Math.max(280,container.clientWidth);

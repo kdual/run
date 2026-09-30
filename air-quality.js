@@ -1,3 +1,4 @@
+import { requestJson } from './request.js?v=36';
 import { APP_CONFIG } from './running-score-config.js?v=14';
 export async function fetchAirQuality(location, signal) {
   const p = new URLSearchParams({
@@ -8,18 +9,7 @@ export async function fetchAirQuality(location, signal) {
     longitude: String(location.longitude || '')
   });
   const url = `${APP_CONFIG.apiBaseUrl}/air?${p}`;
-  let lastError;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await fetch(url, { signal, cache: 'no-store' });
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data) throw new Error(data?.message || `에어코리아 API 오류 (${response.status})`);
-      return data;
-    } catch (error) {
-      if (error.name === 'AbortError') throw error;
-      lastError = error;
-      if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 800));
-    }
-  }
-  throw lastError;
+  const {data}=await requestJson(url,signal);
+  if(!data?.current)throw new Error('대기질 자료를 확인할 수 없습니다.');
+  return data;
 }
