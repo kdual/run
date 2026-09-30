@@ -1,13 +1,13 @@
-import { requestJson } from './request.js?v=37';
+import { requestJson, requestFailureLabel } from './request.js?v=38';
 import { APP_CONFIG } from './running-score-config.js?v=14';
-import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=37';
-import { fetchAirQuality } from './air-quality.js?v=37';
+import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=38';
+import { fetchAirQuality } from './air-quality.js?v=38';
 import { getStored, setStored, getCache, setCache } from './storage.js?v=19';
-import { currentConditions, dailyCoverage, hourlySlots, poorAir, dailyScore, findBestRunningTimes, includeCurrentObservation, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=37';
-import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=37';
+import { currentConditions, dailyCoverage, hourlySlots, poorAir, dailyScore, findBestRunningTimes, includeCurrentObservation, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=38';
+import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=38';
 import { fromPace, fromSpeed, paceTableRows, parsePaceInput, renderPace } from './pace-calculator.js?v=30';
-import { renderHourlyChart } from './charts.js?v=37';
-import { solarTimes } from './solar-times.js?v=37';
+import { renderHourlyChart } from './charts.js?v=38';
+import { solarTimes } from './solar-times.js?v=38';
 import { dateOnly, escapeHtml, formatValue, monthDay, round, secondsToClock, timeOnly, weatherSymbol, weekday } from './utils.js';
 
 const $ = id => document.getElementById(id);
@@ -29,7 +29,7 @@ async function loadData(force=false){
   state.controller?.abort();const controller=new AbortController();state.controller=controller;state.loading=true;setLoading(true);showError('');
   const loc={...state.location};
   try{
-    if(!loc.areaNo){
+    if(!loc.areaNo||!loc.region1){
       let timeout;
       try{Object.assign(loc,await Promise.race([ensureAreaCode(loc),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('지역 확인 시간 초과')),8000);})]));}
       catch{}finally{clearTimeout(timeout);}
@@ -37,13 +37,13 @@ async function loadData(force=false){
     if(controller.signal.aborted)return;
     state.location=loc;setStored('location',loc);$('headerLocation').textContent=loc.name;
     const cached=getCache(loc),fresh=cached&&Date.now()-cached.savedAt<APP_CONFIG.cacheMinutes*60000;
-    const payload={...(cached?.payload||{}),airPending:true,airError:false,fromCache:Boolean(cached),savedAt:cached?.savedAt||Date.now()};
+    const payload={...(cached?.payload||{}),airPending:true,airError:false,airFailureReason:null,fromCache:Boolean(cached),savedAt:cached?.savedAt||Date.now()};
     if(fresh&&payload.weather){state.data=payload;render();}
     const apply=()=>{if(!controller.signal.aborted&&payload.weather){state.data={...payload};render();}};
     const publicRequest=path=>requestJson(`${APP_CONFIG.apiBaseUrl}${path}`,controller.signal,{retries:0}).then(r=>r.data).catch(()=>null);
     const forecastJob=publicRequest(`/air/forecast?sidoName=${encodeURIComponent(loc.region1||'서울')}`).then(data=>{payload.forecast=data||payload.forecast;apply();});
     const alertsJob=publicRequest(`/air/alerts?sidoName=${encodeURIComponent(loc.region1||'서울')}&districtName=${encodeURIComponent(loc.region2||'')}`).then(data=>{payload.officialAlerts=data||null;apply();});
-    const airJob=fetchAirQuality(loc,controller.signal).then(data=>{payload.air=data;payload.airStale=false;}).catch(error=>{if(error.name!=='AbortError'){payload.airError=true;payload.airStale=Boolean(payload.air);}}).finally(()=>{payload.airPending=false;apply();});
+    const airJob=fetchAirQuality(loc,controller.signal).then(data=>{payload.air=data;payload.airStale=false;}).catch(error=>{if(error.name!=='AbortError'){payload.airError=true;payload.airFailureReason=requestFailureLabel(error);payload.airStale=Boolean(payload.air);}}).finally(()=>{payload.airPending=false;apply();});
     let weatherError;
     const weatherJob=fetchWeather(loc,controller.signal).then(weather=>{payload.weather=weather;payload.savedAt=Date.now();payload.fromCache=false;apply();}).catch(error=>{weatherError=error;});
     await Promise.all([weatherJob,airJob,forecastJob,alertsJob]);
@@ -52,7 +52,7 @@ async function loadData(force=false){
     apply();if(!weatherError)setCache(loc,payload);
     const warnings=[];
     if(weatherError)warnings.push('최신 날씨 조회에 실패해 저장된 관측을 표시합니다.');
-    if(payload.airError)warnings.push(payload.airStale?'대기질 최신 조회에 실패해 저장된 자료를 표시합니다.':'대기질 조회에 실패했습니다. 새로고침으로 다시 시도할 수 있습니다.');
+    if(payload.airError)warnings.push(`대기질 최신 조회 실패 (${payload.airFailureReason||'원인 미확인'}). ${payload.airStale?'저장된 측정값을 표시하며, 3시간이 지나면 현재 점수에서 제외합니다.':'대기질 없이 계산하며 새로고침으로 다시 시도할 수 있습니다.'}`);
     if(payload.weather.life_indices?.uv!=='ok'||payload.weather.life_indices?.air_stagnation!=='ok')warnings.push('일부 생활기상지수를 조회하지 못했습니다.');
     showError(warnings.join(' '));
   }catch(error){if(error.name!=='AbortError')showError(`날씨를 가져오지 못했습니다. 다시 시도해 주세요. (${error.message})`);}
@@ -66,8 +66,9 @@ function render(){
   $('updatedAt').textContent=`업데이트 ${new Intl.DateTimeFormat('ko-KR',{hour:'2-digit',minute:'2-digit'}).format(new Date(state.data.savedAt))}${state.data.fromCache?' · 저장 데이터':''}`;
   const station=air?.current?.station_name;const measured=air?.current?.measured_at;
   const living=weather.life_indices;const livingReady=living?.uv==='ok'||living?.air_stagnation==='ok';
-  const airSource=state.data.airPending?' · 에어코리아 갱신 중':station?` · 에어코리아 ${station} 측정소${measured?` ${measured} 측정`:''}`:' · 대기질 정보 없음';
-  $('scoreDataStatus').textContent=current.score===null?'계산 불가 · '+current.missing.join(' · '):current.missing.length?'일부 정보 미반영: '+current.missing.join(' · '):'점수 계산에 필요한 자료가 확인됐습니다.';
+  const airSource=state.data.airError?` · 에어코리아 최신 조회 실패${station?` · ${station} 저장 측정값`:''}`:state.data.airPending?' · 에어코리아 갱신 중':station?` · 에어코리아 ${station} 측정소${measured?` ${measured} 측정`:''}`:' · 대기질 정보 없음';
+  const airState=state.data.airError?'대기질 최신 조회 실패 · '+(Number.isFinite(current.pm2_5)||Number.isFinite(current.pm10)||Number.isFinite(current.air_quality_index)?'저장된 대기질 사용 중 · ':'대기질 미반영 · '):state.data.airPending?'대기질 갱신 중 · ':'';
+  $('scoreDataStatus').textContent=airState+(current.score===null?'계산 불가 · '+current.missing.join(' · '):current.missing.length?'일부 정보 미반영: '+current.missing.join(' · '):'확인된 자료로 계산한 추정 점수입니다.');
   $('observationSource').textContent=`기상청 ${timeOnly(current.observation_time)} 관측${livingReady?'·생활기상지수':''}${airSource}`;$('airSourceDetail').textContent=station?`PM 실측: ${station} · ${measured||'측정 시각 없음'}${Number.isFinite(air?.station_distance_km)?` · 약 ${air.station_distance_km}km`:''}. 3시간이 지나면 현재 점수에서 제외합니다.`:'PM 실측 측정소 또는 값이 확인되지 않았습니다.';$('forecastSourceDetail').textContent=state.data.forecast?.daily?.length?`미래 대기질: 에어코리아 ${state.data.forecast.sido_name} 권역 일일 예보 등급 (시간별 농도 아님)`:'미래 대기질: 권역 예보 없음 · 점수에 대기질 반영 안 함';
   $('offlineBanner').hidden=navigator.onLine;renderFeelSummary();
 }
@@ -207,4 +208,4 @@ renderFeelSummary();
 calculatorTemplate();renderPaceTable();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=37',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=38',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});

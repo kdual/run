@@ -1,5 +1,5 @@
-const CACHE='runwise-static-v37';
-const STATIC=['./','./index.html','./styles.css?v=37','./responsive.css?v=20','./app.js?v=37','./weather.js?v=37','./air-quality.js?v=37','./request.js?v=37','./running-score.js?v=37','./running-coach.js?v=37','./pace-calculator.js?v=30','./charts.js?v=37','./storage.js?v=19','./solar-times.js?v=37','./utils.js','./running-score-config.js?v=14','./manifest.json','./icon.svg','./icon-192.png','./icon-512.png'];
+const CACHE='runwise-static-v38';
+const STATIC=['./','./index.html','./styles.css?v=38','./responsive.css?v=20','./app.js?v=38','./weather.js?v=38','./air-quality.js?v=38','./request.js?v=38','./running-score.js?v=38','./running-coach.js?v=38','./pace-calculator.js?v=30','./charts.js?v=38','./storage.js?v=19','./solar-times.js?v=38','./utils.js','./running-score-config.js?v=14','./manifest.json','./icon.svg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('runwise-static-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
