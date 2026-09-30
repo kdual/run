@@ -1,5 +1,5 @@
 import { safe } from './utils.js';
-import { runningScoreDeductions, poorAir } from './running-score.js?v=36';
+import { runningScoreDeductions, poorAir } from './running-score.js?v=37';
 
 export function coachMessage(c, best) {
   if(poorAir(c)&&!Number.isFinite(c.score))return '대기질이 좋지 않아 야외 고강도 러닝은 피하세요. 최신 기상 자료도 확인해 주세요.';

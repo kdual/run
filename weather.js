@@ -1,4 +1,4 @@
-import { requestJson } from './request.js?v=36';
+import { requestJson } from './request.js?v=37';
 import { APP_CONFIG } from './running-score-config.js?v=14';
 
 export async function fetchWeather({ latitude, longitude, areaNo }, signal) {

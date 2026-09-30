@@ -1,6 +1,6 @@
 import { APP_CONFIG } from './running-score-config.js?v=14';
 import { clamp, safe, dateOnly } from './utils.js';
-import { solarTimes, solarAltitude } from './solar-times.js?v=36';
+import { solarTimes, solarAltitude } from './solar-times.js?v=37';
 
 const kst = date => new Date(date.getTime()+9*3600000).toISOString().slice(0,16);
 const stamp = value => Date.parse(String(value||'').replace(' ','T').slice(0,16)+':00+09:00');
