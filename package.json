@@ -1,1 +1,0 @@
-{"name":"runwise","private":true,"type":"module","scripts":{"test":"node tests/core.mjs && node tests/ui.mjs && RUNWISE_SCENARIO=pollution node tests/ui.mjs && RUNWISE_SCENARIO=cold node tests/ui.mjs && RUNWISE_SCENARIO=missing node tests/ui.mjs && node tests/release.mjs"},"devDependencies":{"linkedom":"0.18.12"}}

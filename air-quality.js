@@ -1,6 +1,6 @@
-import { requestJson } from './request.js?v=40';
-import { getStored, setStored } from './storage.js?v=40';
-import { APP_CONFIG } from './running-score-config.js?v=40';
+import { requestJson } from './request.js?v=39';
+import { getStored, setStored } from './storage.js?v=19';
+import { APP_CONFIG } from './running-score-config.js?v=14';
 export async function fetchAirQuality(location, signal) {
   if(!location.region1){const error=new Error('시·도 행정구역을 확인할 수 없습니다.');error.code='REGION';throw error;}
   const stationKey=[location.region1,location.region2||'',Number(location.latitude).toFixed(3),Number(location.longitude).toFixed(3)].join('|');

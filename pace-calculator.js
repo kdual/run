@@ -1,5 +1,5 @@
-import { APP_CONFIG } from './running-score-config.js?v=40';
-import { secondsToClock } from './utils.js?v=40';
+import { APP_CONFIG } from './running-score-config.js';
+import { secondsToClock } from './utils.js';
 
 export function fromGoal(distanceKm, finishSeconds) { if (!(distanceKm>0) || !(finishSeconds>0)) return null; return fromPace(finishSeconds/distanceKm); }
 export function fromPace(paceSeconds) { if (!(paceSeconds>0)) return null; return { paceSeconds, speed:3600/paceSeconds, splits:makeSplits(paceSeconds) }; }

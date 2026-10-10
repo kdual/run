@@ -1,5 +1,5 @@
-import { requestJson } from './request.js?v=40';
-import { APP_CONFIG } from './running-score-config.js?v=40';
+import { requestJson } from './request.js?v=39';
+import { APP_CONFIG } from './running-score-config.js?v=14';
 
 export async function fetchWeather({ latitude, longitude, areaNo }, signal) {
   const params = new URLSearchParams({ latitude, longitude });
@@ -57,9 +57,7 @@ const splitAddress = value => {
 };
 
 export async function searchLocations(query) {
-  const searches = await Promise.allSettled([keywordSearch(query), addressSearch(query)]);
-  if(searches.every(r=>r.status==='rejected'))throw new Error('주소 검색에 연결하지 못했습니다. 빠른 지역 선택을 이용하거나 잠시 후 다시 검색해 주세요.');
-  const [places, addresses] = searches.map(r=>r.status==='fulfilled'?r.value:[]);
+  const [places, addresses] = await Promise.all([keywordSearch(query), addressSearch(query)]);
   const normalized = [];
   for (const place of places) {
     const address = place.road_address_name || place.address_name;

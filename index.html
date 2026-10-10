@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko" data-version="40">
+<html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -8,11 +8,8 @@
   <title>RUNWISE — Running Dashboard</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-
-
-  <link rel="stylesheet" href="./styles.css?v=40">
-  <link rel="stylesheet" href="./responsive.css?v=40">
-  <link rel="stylesheet" href="./enhancements.css?v=40">
+  <link rel="stylesheet" href="./styles.css?v=39">
+  <link rel="stylesheet" href="./responsive.css?v=20">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
 <body>
@@ -48,7 +45,7 @@
         <p id="runNowMessage" class="hero-message">현재 러닝 환경을 분석하고 있습니다.</p>
         <p id="scoreDataStatus" class="fine-print" role="status">점수 자료 확인 중</p>
         <div class="score-context"><label for="routeShade">코스 그늘 조건</label><select id="routeShade"><option value="0">그늘 거의 없음</option><option value="0.5">그늘과 햇빛이 섞임</option><option value="0.85">그늘 많은 코스</option></select><small>선택한 조건으로 현재·시간별·추천 점수를 함께 비교합니다.</small></div>
-        <p id="scoreDisclaimer" class="fine-print">날씨 기반 참고 점수입니다. 경고와 자료 확인 상태를 먼저 확인하세요. 개인 체감과의 일치도는 아직 검증되지 않았습니다.</p>
+        <p id="scoreDisclaimer" class="fine-print">환경 비교를 위한 추정 점수이며 개인 체감과 일치하는지 검증되지 않았습니다. 체감온도는 그늘 기준 추정이고, 햇빛 열부담은 태양 위치·구름량·선택한 그늘 조건으로 추정합니다. 밤에도 더위와 습기 감점은 유지합니다.</p>
         <details class="score-method"><summary>점수의 근거와 실제 체감 비교</summary><p>체감온도에는 기온·습도·바람이 이미 포함됩니다. 추가 습기 감점은 이슬점과 습도 중 큰 값 하나만 적용합니다. 햇빛 열부담과 UV는 별개이며, PM2.5·PM10·통합대기지수 중 큰 감점을 적용합니다.</p><p>0–100 변환 가중치와 등급은 러닝 환경 비교를 위한 설계값입니다. 임상·운동 실험으로 검증된 척도, WBGT, UTCI가 아닙니다. 운동 강도·적응도·복장·노면 복사열은 반영하지 못합니다. 극단적인 더위·추위는 감점이 멈추지 않도록 추가 부담을 적용합니다.</p><p><a href="https://www.bom.gov.au/info/thermal_stress/" target="_blank" rel="noopener">호주 기상청: 체감온도와 열부담의 범위</a></p><p>지금 직접 느껴본 러닝 환경과 점수를 비교해 기록하세요. 기록은 이 기기에만 저장되고 점수나 대기질 경고를 자동으로 바꾸지 않습니다.</p><div class="feel-buttons" role="group" aria-label="실제 체감 비교"><button type="button" data-feel="harder">점수보다 힘듦</button><button type="button" data-feel="similar">대체로 비슷함</button><button type="button" data-feel="easier">점수보다 편함</button></div><p id="feelSummary" class="fine-print" role="status">실제 체감 기록이 없습니다.</p><button id="clearFeels" type="button">체감 기록 지우기</button></details>
       </div>
       <div class="hero-side">
@@ -57,7 +54,7 @@
         <div class="hero-weather"><span>습도</span><strong id="heroHumidity">--%</strong></div>
         <div class="hero-weather"><span>이슬점</span><strong id="heroDew">--°</strong></div>
         <div class="best-now" aria-label="오늘의 러닝 점수와 추천 시간">
-          <div class="today-score-heading"><span>오늘 남은 시간의 러닝 여건</span><small id="updatedAt" class="updated">업데이트 대기</small></div>
+          <div class="today-score-heading"><span>오늘의 러닝 점수</span><small id="updatedAt" class="updated">업데이트 대기</small></div>
           <div class="today-score-value"><strong id="todayScore">--</strong><span>점</span><b id="todayGrade">분석 중</b></div>
           <p id="todaySummary" class="muted">러닝 가능한 시간의 점수를 계산하고 있습니다.</p>
           <div class="today-best-time"><span>가장 좋은 시간</span><strong id="todayBestTime">--:--</strong></div>
@@ -85,17 +82,17 @@
         <div class="section-heading"><div><p class="eyebrow">DAYLIGHT</p><h2 id="sunCardTitle">일출 · 일몰과 박명</h2></div></div>
         <div class="sun-timeline" aria-label="오늘의 일출, 일몰, 박명 시각">
           <div class="sun-period"><h3>🌤 새벽 · 일출</h3><div class="sun-events">
-            <div><span>밝아지기 시작 <small>시민박명 시작</small></span><strong id="civilDawn">--:--</strong></div>
-
+            <div><span>첫빛 <small>천문박명 시작</small></span><strong id="astronomicalDawn">--:--</strong></div>
+            <div><span>항해박명 <small>BMNT</small></span><strong id="nauticalDawn">--:--</strong></div>
             <div><span>일출</span><strong id="sunrise">--:--</strong></div>
           </div></div>
           <div class="sun-period"><h3>🌙 일몰 · 밤</h3><div class="sun-events">
             <div><span>일몰</span><strong id="sunset">--:--</strong></div>
-            <div><span>어두워지는 구간 끝 <small>시민박명 종료</small></span><strong id="civilDusk">--:--</strong></div>
-
+            <div><span>항해박명 종료 <small>EENT</small></span><strong id="nauticalDusk">--:--</strong></div>
+            <div><span>완전한 어둠 <small>천문박명 종료</small></span><strong id="astronomicalDusk">--:--</strong></div>
           </div></div>
         </div>
-        <details class="review-details"><summary>항해·천문박명 상세</summary><div class="twilight-detail"><span>천문박명 시작 <b id="astronomicalDawn">--:--</b></span><span>항해박명 시작 <b id="nauticalDawn">--:--</b></span><span>항해박명 종료 <b id="nauticalDusk">--:--</b></span><span>천문박명 종료 <b id="astronomicalDusk">--:--</b></span></div></details><p id="sunStatus" class="muted"></p>
+        <p id="sunStatus" class="muted"></p>
         <p class="sun-note">박명은 태양 위치로 계산한 예상 시각입니다. 구름·지형·도심 조명에 따라 실제 밝기는 다릅니다.</p>
       </article>
     </section>
@@ -110,7 +107,7 @@
     </section>
 
     <section class="card wide-section" aria-labelledby="weeklyTitle">
-      <div class="section-heading weekly-heading"><div><p class="eyebrow">FORECAST</p><h2 id="weeklyTitle">러닝 예보</h2></div><p id="comparisonMessage" class="weekly-diff">오늘과 내일을 비교하는 중입니다.</p></div>
+      <div class="section-heading weekly-heading"><div><p class="eyebrow">7-DAY</p><h2 id="weeklyTitle">이번 주 러닝 날씨</h2></div><p id="comparisonMessage" class="weekly-diff">오늘과 내일을 비교하는 중입니다.</p></div>
       <div id="weeklyCards" class="weekly-grid"></div>
       <div id="selectedDayDetail" class="selected-day-detail"></div>
     </section>
@@ -124,7 +121,7 @@
 
     <section class="dashboard-grid split-grid">
       <article class="card">
-        <div class="section-heading"><div><p class="eyebrow">WORKOUT</p><h2>훈련별 환경 적합도</h2></div></div>
+        <div class="section-heading"><div><p class="eyebrow">WORKOUT</p><h2>추천 훈련</h2></div></div>
         <div id="workoutScores" class="workout-list"></div>
       </article>
       <article class="card">
@@ -169,6 +166,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=40"></script>
+  <script type="module" src="./app.js?v=39"></script>
 </body>
 </html>

@@ -19,11 +19,9 @@ export function solarTimes(date, latitude, longitude) {
   return {
     astronomical_dawn: boundary(108,true),
     nautical_dawn: boundary(102,true),
-    civil_dawn: boundary(96,true),
     sunrise: boundary(90.833,true),
     sunset: boundary(90.833,false),
     nautical_dusk: boundary(102,false),
-    civil_dusk: boundary(96,false),
     astronomical_dusk: boundary(108,false)
   };
 }

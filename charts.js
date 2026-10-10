@@ -1,4 +1,4 @@
-import { timeOnly } from './utils.js?v=40';
+import { timeOnly } from './utils.js';
 
 function weatherLabel(code) {
   if (code === 0) return '맑음';
