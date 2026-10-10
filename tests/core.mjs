@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {assessed,riskAssessment,calculateRunningScore,findBestRunningTimes,comparableDays,currentConditions} from '../running-score.js';
+import {coachMessage,runNowMessage,environmentAlerts} from '../running-coach.js';
+import {evaluatePlan,windowFor} from '../enhancements.js';
+const base={time:'2026-10-10T20:00',temperature_2m:12,apparent_temperature:12,relative_humidity_2m:50,dew_point_2m:2,wind_speed_10m:5,precipitation:0,precipitation_probability:0,uv_index:0,is_day:0,pm2_5:10,pm10:20,air_quality_index:30};
+const bad=assessed({...base,pm2_5:100,pm10:180,air_quality_index:300});assert.equal(bad.score,39);assert.match(runNowMessage(bad),/추천을 제한/);assert.match(coachMessage(bad),/추천을 제한/);
+const cold=assessed({...base,apparent_temperature:-20,temperature_2m:-20,dew_point_2m:-25});assert.equal(cold.score,39);assert.match(coachMessage(cold),/추위/);assert(environmentAlerts(cold).includes('강한 추위'));
+const missing=assessed({...base,pm2_5:null,pm10:null,air_quality_index:null});assert.equal(missing.risk.conditional,true);assert.match(runNowMessage(missing),/대기질/);
+assert.equal(riskAssessment({...base,temperature_2m:1,apparent_temperature:1,precipitation:1}).level,'caution');
+const row=h=>assessed({...base,time:`2026-10-10T${h}:00`});const rows=['19','20','21','22','23'].map(row);
+const best=findBestRunningTimes(rows,3,120,new Date('2026-10-10T18:30:00+09:00'),{start:20,end:23});assert(best.length);assert(best.every(b=>b.start.slice(11)>='20:00'&&b.end.slice(11)<='23:00'));
+assert.equal(findBestRunningTimes([cold],3,60,new Date('2026-10-10T18:30:00+09:00')).length,0);
+const tomorrow=rows.map(r=>({...r,time:r.time.replace('10-10','10-11'),pm2_5:null,pm10:null,air_quality_index:null}));const cmp=comparableDays(rows,tomorrow,{start:20,end:23});assert.equal(cmp.count,3);assert.equal(cmp.today,cmp.tomorrow);
+const plan=evaluatePlan(rows,'2026-10-10T20:30',60,360);assert.equal(plan.complete,true);assert.equal(plan.distance,10);assert.equal(evaluatePlan(rows,'2026-10-10T23:30',60,360).complete,false);assert.equal(evaluatePlan(rows,'2026-10-10T20:30',60,NaN).distance,null);
+assert.deepEqual(windowFor({enabled:true,weekdayStart:20,weekdayEnd:23,weekendStart:7,weekendEnd:10},'2026-10-10'),{start:7,end:10});
+console.log('PASS: 19 assertions — air/cold/unknown/wet-cold, risk exclusion, whole-window coverage, common-time comparison, pace and weekend schedule');

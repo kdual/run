@@ -1,6 +1,6 @@
-import { APP_CONFIG } from './running-score-config.js?v=14';
-import { clamp, safe, dateOnly } from './utils.js';
-import { solarTimes, solarAltitude } from './solar-times.js?v=39';
+import { APP_CONFIG } from './running-score-config.js?v=40';
+import { clamp, safe, dateOnly } from './utils.js?v=40';
+import { solarTimes, solarAltitude } from './solar-times.js?v=40';
 
 const kst = date => new Date(date.getTime()+9*3600000).toISOString().slice(0,16);
 const stamp = value => Date.parse(String(value||'').replace(' ','T').slice(0,16)+':00+09:00');
@@ -14,7 +14,7 @@ export function scoreMissing(c={}) {
   if(c.is_day===1&&!Number.isFinite(c.cloud_cover))missing.push('구름량(햇빛 추정 제한)');
   return missing;
 }
-function assessed(c) { return {...c,deductions:runningScoreDeductions(c),score:calculateRunningScore(c),missing:scoreMissing(c)}; }
+export function assessed(c) { return {...c,deductions:runningScoreDeductions(c),score:calculateRunningScore(c),weatherScore:weatherOnlyScore(c),risk:riskAssessment(c),missing:scoreMissing(c)}; }
 
 function bandPenalty(value, idealLow, idealHigh, outerLow, outerHigh) {
   if (!Number.isFinite(value)) return 0;
@@ -54,7 +54,7 @@ export function runningScoreDeductions(c = {}) {
 export function calculateRunningScore(c = {}) {
   if(scoreMissing(c).some(label=>['기온','습도','바람'].includes(label)))return null;
   const penalty = Object.values(runningScoreDeductions(c)).reduce((sum,value)=>sum+value,0);
-  return Math.round(clamp(100 - penalty));
+  return Math.round(Math.min(clamp(100 - penalty),riskAssessment(c).cap));
 }
 
 export function mergeHourly(weather, air, forecastData = null, options = {}) {
@@ -137,8 +137,9 @@ export function dailyScore(rows) {
   const eligible=hourlySlots(rows).sort((a,b)=>b.score-a.score).slice(0,4);
   return eligible.length?Math.round(eligible.reduce((s,r)=>s+r.score,0)/eligible.length):null;
 }
-export function findBestRunningTimes(rows, count = 3, durationMinutes = 120, now = new Date()) {
-  const eligible=hourlySlots(rows),nowStamp=now.getTime();
+export function findBestRunningTimes(rows, count = 3, durationMinutes = 120, now = new Date(), options = {}) {
+  const eligible=hourlySlots(rows).filter(r=>inRunningWindow(r.time,options)).filter(r=>riskAssessment(r).level!=='avoid'),nowStamp=now.getTime();
+  const weatherBasis=eligible.some(r=>!riskAssessment(r).airKnown||r.air_quality_estimated||!Number.isFinite(r.uv_index));
   const candidates=new Set(eligible.map(r=>stamp(r.time)));
   const soon=Math.ceil(nowStamp/(5*60000))*5*60000;
   if(eligible.some(r=>stamp(r.time)<=soon&&soon<stamp(r.time)+3600000))candidates.add(soon);
@@ -147,9 +148,9 @@ export function findBestRunningTimes(rows, count = 3, durationMinutes = 120, now
     if(start<nowStamp)continue;
     const end=start+durationMinutes*60000;
     let covered=0,weighted=0;
-    for(const r of eligible){const overlap=Math.max(0,Math.min(end,stamp(r.time)+3600000)-Math.max(start,stamp(r.time)));covered+=overlap;weighted+=overlap*r.score;}
+    for(const r of eligible){const overlap=Math.max(0,Math.min(end,stamp(r.time)+3600000)-Math.max(start,stamp(r.time)));covered+=overlap;weighted+=overlap*(weatherBasis?weatherOnlyScore(r):r.score);}
     if(covered!==end-start)continue;
-    blocks.push({start:kst(new Date(start)),end:kst(new Date(end)),score:Math.round(weighted/covered),durationMinutes,duration:durationMinutes/60});
+    blocks.push({start:kst(new Date(start)),end:kst(new Date(end)),score:Math.round(weighted/covered),durationMinutes,duration:durationMinutes/60,basis:weatherBasis?'weather':'full',conditional:eligible.some(r=>stamp(r.time)<end&&stamp(r.time)+3600000>start&&riskAssessment(r).conditional)});
   }
   blocks.sort((a,b)=>b.score-a.score||a.start.localeCompare(b.start));
   const chosen=[];
@@ -160,18 +161,37 @@ export function findBestRunningTimes(rows, count = 3, durationMinutes = 120, now
   return chosen;
 }
 
+export function riskAssessment(c={}) {
+ const reasons=[];let cap=100,level='normal';
+ const add=(label,limit)=>{reasons.push(label);cap=Math.min(cap,limit);level=cap<=39?'avoid':'caution';};
+ const t=safe(c.apparent_temperature,safe(c.temperature_2m));
+ if(c.pm2_5>75||c.pm10>150||c.air_quality_index>250)add('대기오염 매우 높음',39);
+ else if(poorAir(c))add('대기질 나쁨',69);
+ if(Number.isFinite(t)){if(t<=-15)add('강한 추위',39);else if(t<0)add('추위',69);if(t>=35)add('강한 더위',39);else if(t>=28)add('더위',69);}
+ if(c.wind_speed_10m>=50)add('강한 바람',39);else if(c.wind_speed_10m>=30)add('강풍',69);
+ if(c.precipitation>=10)add('강한 비',39);
+ if(c.precipitation>0&&c.temperature_2m<=2)add('추위와 젖은 노면',69);
+ if(c.weather_code>=71&&c.weather_code<=77)add('눈 · 노면 확인',69);
+ const airKnown=[c.pm2_5,c.pm10,c.air_quality_index].some(Number.isFinite);
+ return {level,cap,reasons,airKnown,conditional:!airKnown||Boolean(c.air_quality_estimated)};
+}
+export function weatherOnlyScore(c){return calculateRunningScore({...c,pm2_5:null,pm10:null,air_quality_index:null,uv_index:null});}
 export function workoutScores(c) {
-  const base = calculateRunningScore(c);
-  if(!Number.isFinite(base))return Object.fromEntries(['Recovery','Easy','Long Run','Tempo','Interval','Race'].map(key=>[key,null]));
-  const heat = Math.max(0, (safe(c.apparent_temperature, 15)-18) * 1.4);
-  const dew = Math.max(0, (safe(c.dew_point_2m, 8)-13) * 1.2);
-  const rain = Math.max(0, safe(c.precipitation_probability,0)-40) * .08;
-  return {
-    Recovery: Math.round(clamp(base + 5 - rain*.4)),
-    Easy: Math.round(clamp(base + 3 - rain*.5)),
-    'Long Run': Math.round(clamp(base - heat*.35 - dew*.35 - rain)),
-    Tempo: Math.round(clamp(base - heat*.7 - dew*.7 - rain*.8)),
-    Interval: Math.round(clamp(base - heat - dew - rain*.7)),
-    Race: Math.round(clamp(base - heat*1.15 - dew*1.1 - rain*.8))
-  };
+ const base=calculateRunningScore(c),risk=riskAssessment(c);
+ return Object.fromEntries(['Recovery','Easy','Long Run','Tempo','Interval','Race'].map(k=>[k,!Number.isFinite(base)?null:Math.min(base,risk.cap)]));
+}
+
+export function inRunningWindow(time,options={}) {
+ const h=Number(time.slice(11,13))+Number(time.slice(14,16))/60;
+ const start=Number(options.start??5),end=Number(options.end??24);
+ return start<=end?h>=start&&h<end:h>=start||h<end;
+}
+export function comparableDays(a,b,options={}) {
+ const aSlots=hourlySlots(a).filter(r=>inRunningWindow(r.time,options));
+ const bSlots=hourlySlots(b).filter(r=>inRunningWindow(r.time,options));
+ const map=new Map(bSlots.map(r=>[r.time.slice(11),r]));
+ const pairs=aSlots.filter(r=>map.has(r.time.slice(11))).map(r=>[r,map.get(r.time.slice(11))]);
+ if(!pairs.length)return null;
+ const mean=i=>Math.round(pairs.reduce((s,p)=>s+weatherOnlyScore(p[i]),0)/pairs.length);
+ return {today:mean(0),tomorrow:mean(1),hours:pairs.map(p=>p[0].time.slice(11)),count:pairs.length};
 }

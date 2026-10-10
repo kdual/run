@@ -1,7 +1,12 @@
-import { safe } from './utils.js';
-import { runningScoreDeductions, poorAir } from './running-score.js?v=39';
+import { safe } from './utils.js?v=40';
+import { runningScoreDeductions, poorAir, riskAssessment } from './running-score.js?v=40';
 
 export function coachMessage(c, best) {
+  const risk=riskAssessment(c);
+  if(risk.level==='avoid')return risk.reasons.join(' · ')+' 조건으로 야외 러닝 추천을 제한합니다.';
+  if(risk.reasons.includes('추위'))return '추위가 예상됩니다. 보온·바람·젖은 노면을 확인하고 짧은 구간부터 판단하세요.';
+  if(!risk.airKnown)return '기상 조건만 계산했습니다. 출발 전 대기질을 확인해 주세요.';
+  if(best?.basis==='weather')best=null;
   if(poorAir(c)&&!Number.isFinite(c.score))return '대기질이 좋지 않아 야외 고강도 러닝은 피하세요. 최신 기상 자료도 확인해 주세요.';
   if(!Number.isFinite(c.score))return '기상 자료가 부족하거나 오래되어 점수를 계산할 수 없습니다. 최신 날씨를 확인해 주세요.';
   const messages=[];
@@ -19,6 +24,11 @@ export function coachMessage(c, best) {
 }
 
 export function runNowMessage(c, best) {
+  const risk=riskAssessment(c);
+  if(risk.level==='avoid')return risk.reasons.join(' · ')+' 조건으로 야외 러닝 추천을 제한합니다.';
+  if(risk.reasons.includes('추위'))return '추위가 예상됩니다. 보온·바람·젖은 노면을 확인하고 짧은 구간부터 판단하세요.';
+  if(!risk.airKnown)return '기상 조건만 계산했습니다. 출발 전 대기질을 확인해 주세요.';
+  if(best?.basis==='weather')best=null;
   if(poorAir(c))return '대기질이 좋지 않아 야외 고강도 러닝은 권장하지 않습니다.';
   if(!Number.isFinite(c.score))return '최신 기상 자료를 확인한 뒤 러닝 조건을 판단해 주세요.';
   if(poorAir(c))return '대기질이 좋지 않아 야외 고강도 러닝은 권장하지 않습니다.';
@@ -33,6 +43,7 @@ export function runNowMessage(c, best) {
 
 export function environmentAlerts(c) {
   const list=[];
+  const risk=riskAssessment(c);list.push(...risk.reasons);if(!risk.airKnown)list.push('대기질 미확인 · 종합적으로 좋다고 판단할 수 없음');
   if(c.missing?.length)list.push(`자료 부족 · ${c.missing.join(', ')} 점수 반영 제한`);
   if (runningScoreDeductions(c).sunExposure>=8) list.push('햇빛 열부담(추정) · 그늘 없는 코스는 더 덥게 느껴질 수 있음');
   if (safe(c.apparent_temperature,0)>=28) list.push('고온 · 수분 보충 주의');

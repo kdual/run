@@ -33,7 +33,7 @@ export default {
 
       if (url.pathname === '/weather/current') return currentRoute(url, env, headers);
       if (url.pathname === '/weather') return weatherRoute(url, env, headers);
-      if (url.pathname === '/air') return airRoute(url, env, headers);
+      if (url.pathname === '/air') return cachedPublicRoute(request, url, env, headers, airRoute);
       if (url.pathname === '/air/forecast') return cachedPublicRoute(request, url, env, headers, airForecastRoute);
       if (url.pathname === '/air/alerts') return cachedPublicRoute(request, url, env, headers, airAlertsRoute);
 
@@ -145,7 +145,7 @@ async function airRoute(url, env, headers) {
     station_lookup: stationListResult.status,
     current,
     daily: []
-  }, 200, { ...headers, 'Cache-Control': 'public, max-age=900' });
+  }, 200, { ...headers, 'Cache-Control': 'public, max-age=60' });
 }
 
 async function cachedPublicRoute(request, url, env, headers, handler) {
@@ -191,32 +191,20 @@ async function airAlertsRoute(url, env, headers) {
   return json({ source: '에어코리아 미세먼지 경보 발령 현황', alerts, checked_at: new Date().toISOString() }, 200, { ...headers, 'Cache-Control': 'public, max-age=900, s-maxage=900' });
 }
 
-async function fetchAirStations(sidoName, districtName, key) {
-  const addresses = [...new Set([districtName, sidoName].map(value => String(value || '').trim()).filter(Boolean))];
-  let lastError = null;
-  const stationMap = new Map();
-  for (const addr of addresses) {
-    const stationListUrl = dataGoUrl(`${AIR_STATION_BASE}/getMsrstnList`, key, {
-      returnType: 'json', numOfRows: addr === sidoName ? 400 : 100, pageNo: 1, addr
-    });
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const data = await fetchJson(stationListUrl, '에어코리아 측정소 정보');
-        assertPublicData(data, '에어코리아 측정소 정보');
-        const stations = normalizeItems(data?.response?.body?.items);
-        for (const station of stations) {
-          const stationKey = cleanStationName(station.stationName);
-          if (stationKey) stationMap.set(stationKey, station);
-        }
-        break;
-      } catch (error) {
-        lastError = error;
-        if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 250));
-      }
-    }
-  }
-  if (stationMap.size) return [...stationMap.values()];
-  throw lastError || new Error('주변 에어코리아 측정소를 찾지 못했습니다.');
+const stationCache=new Map(),stationFlights=new Map();
+async function fetchAirStations(sidoName,districtName,key){
+ const cacheKey=sidoName+'|'+districtName,known=stationCache.get(cacheKey);
+ if(known&&Date.now()-known.at<86400000)return known.data;
+ if(stationFlights.has(cacheKey))return stationFlights.get(cacheKey);
+ const task=(async()=>{
+  const addresses=[...new Set([districtName,sidoName].filter(Boolean))];
+  const results=await Promise.allSettled(addresses.map(async addr=>{
+   const data=await fetchJson(dataGoUrl(`${AIR_STATION_BASE}/getMsrstnList`,key,{returnType:'json',numOfRows:400,pageNo:1,addr}),'에어코리아 측정소 정보');assertPublicData(data,'에어코리아 측정소 정보');return normalizeItems(data?.response?.body?.items);
+  }));
+  const stations=new Map();results.filter(r=>r.status==='fulfilled').flatMap(r=>r.value).forEach(s=>{if(s.stationName)stations.set(cleanStationName(s.stationName),s);});
+  if(!stations.size)throw new Error('측정소 목록 조회 실패');
+  const data=[...stations.values()];stationCache.set(cacheKey,{at:Date.now(),data});if(stationCache.size>100)stationCache.delete(stationCache.keys().next().value);return data;
+ })();stationFlights.set(cacheKey,task);try{return await task;}finally{stationFlights.delete(cacheKey);}
 }
 
 async function fetchKmaCurrent(nx, ny, rawKey) {
@@ -528,8 +516,8 @@ async function fetchJson(url, label) {
   let lastError = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await fetch(url, { headers: { Accept: 'application/json' } });
-      const text = await response.text();
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+      let response,text;try{response=await fetch(url,{headers:{Accept:'application/json'},signal:controller.signal});text=await response.text();}finally{clearTimeout(timer);}
       if (!response.ok) throw new Error(`${label} HTTP 오류 (${response.status})`);
       try { return JSON.parse(text); }
       catch { throw new Error(`${label}가 JSON이 아닌 응답을 반환했습니다: ${text.slice(0, 180)}`); }
