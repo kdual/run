@@ -57,7 +57,9 @@ const splitAddress = value => {
 };
 
 export async function searchLocations(query) {
-  const [places, addresses] = await Promise.all([keywordSearch(query), addressSearch(query)]);
+  const results = await Promise.allSettled([keywordSearch(query), addressSearch(query)]);
+  if (results.every(result => result.status === 'rejected')) throw new Error('카카오 장소·주소 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+  const [places, addresses] = results.map(result => result.status === 'fulfilled' ? result.value : []);
   const normalized = [];
   for (const place of places) {
     const address = place.road_address_name || place.address_name;

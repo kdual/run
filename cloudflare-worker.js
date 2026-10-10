@@ -33,7 +33,7 @@ export default {
 
       if (url.pathname === '/weather/current') return currentRoute(url, env, headers);
       if (url.pathname === '/weather') return weatherRoute(url, env, headers);
-      if (url.pathname === '/air') return airRoute(url, env, headers);
+      if (url.pathname === '/air') return await cachedPublicRoute(request, url, env, headers, airRoute);
       if (url.pathname === '/air/forecast') return cachedPublicRoute(request, url, env, headers, airForecastRoute);
       if (url.pathname === '/air/alerts') return cachedPublicRoute(request, url, env, headers, airAlertsRoute);
 
@@ -92,11 +92,13 @@ async function airRoute(url, env, headers) {
   const latitude = Number(url.searchParams.get('latitude'));
   const longitude = Number(url.searchParams.get('longitude'));
   const key = env.DATA_GO_KR_SERVICE_KEY;
+  // Keep current measurements and any station fallback within the browser's 45 s limit.
+  const deadlineMs = Date.now() + 40000;
 
   const currentUrl = dataGoUrl(`${AIR_BASE}/getCtprvnRltmMesureDnsty`, key, {
     returnType: 'json', numOfRows: 200, pageNo: 1, sidoName, ver: '1.3'
   });
-  const currentData = await fetchJson(currentUrl, '에어코리아 실시간 측정정보');
+  const currentData = await fetchJson(currentUrl, '에어코리아 실시간 측정정보', { deadlineMs });
   assertPublicData(currentData, '에어코리아 실시간 측정정보');
   const items = normalizeItems(currentData?.response?.body?.items);
   let match = selectStation(items, stationName, districtName);
@@ -106,7 +108,7 @@ async function airRoute(url, env, headers) {
   const selectedAirCount = airMeasurementCount(match.item);
   const selectedHasCompletePm = hasCompletePmMeasurement(match.item);
   if ((!match.item || !selectedHasCompletePm) && isKoreanCoordinate(latitude, longitude)) {
-    stationListResult = await fetchAirStations(sidoName, districtName, key)
+    stationListResult = await fetchAirStations(sidoName, districtName, key, { deadlineMs })
       .then(value => ({ status: 'fulfilled', value }), reason => ({ status: 'rejected', reason }));
   }
   if ((!match.item || !selectedHasCompletePm) && stationListResult.status === 'fulfilled') {
@@ -145,7 +147,7 @@ async function airRoute(url, env, headers) {
     station_lookup: stationListResult.status,
     current,
     daily: []
-  }, 200, { ...headers, 'Cache-Control': 'public, max-age=900' });
+  }, 200, { ...headers, 'Cache-Control': 'public, max-age=60, s-maxage=60' });
 }
 
 async function cachedPublicRoute(request, url, env, headers, handler) {
@@ -153,7 +155,13 @@ async function cachedPublicRoute(request, url, env, headers, handler) {
   const cached = await cache.match(request);
   if (cached) return new Response(cached.body, { status: cached.status, headers: { ...Object.fromEntries(cached.headers), ...headers } });
   const response = await handler(url, env, headers);
-  if (response.ok) await cache.put(request, response.clone());
+  let cacheable = response.ok;
+  if (cacheable && url.pathname === '/air') {
+    const payload = await response.clone().json();
+    cacheable = Boolean(payload.current && [payload.current.pm10, payload.current.pm2_5, payload.current.air_quality_index].some(value => value !== null && value !== undefined));
+  }
+  // Cache storage is best-effort: a storage failure must not discard valid measurements.
+  if (cacheable) { try { await cache.put(request, response.clone()); } catch {} }
   return response;
 }
 
@@ -191,32 +199,40 @@ async function airAlertsRoute(url, env, headers) {
   return json({ source: '에어코리아 미세먼지 경보 발령 현황', alerts, checked_at: new Date().toISOString() }, 200, { ...headers, 'Cache-Control': 'public, max-age=900, s-maxage=900' });
 }
 
-async function fetchAirStations(sidoName, districtName, key) {
-  const addresses = [...new Set([districtName, sidoName].map(value => String(value || '').trim()).filter(Boolean))];
-  let lastError = null;
-  const stationMap = new Map();
-  for (const addr of addresses) {
-    const stationListUrl = dataGoUrl(`${AIR_STATION_BASE}/getMsrstnList`, key, {
-      returnType: 'json', numOfRows: addr === sidoName ? 400 : 100, pageNo: 1, addr
+const stationCache = new Map();
+const stationFlights = new Map();
+const STATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+async function fetchStationList(addr, key, options) {
+  const known = stationCache.get(addr);
+  if (known && Date.now() - known.at < STATION_CACHE_TTL_MS) return known.data;
+  if (stationFlights.has(addr)) return stationFlights.get(addr);
+  const task = (async () => {
+    const url = dataGoUrl(`${AIR_STATION_BASE}/getMsrstnList`, key, {
+      returnType: 'json', numOfRows: 400, pageNo: 1, addr
     });
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const data = await fetchJson(stationListUrl, '에어코리아 측정소 정보');
-        assertPublicData(data, '에어코리아 측정소 정보');
-        const stations = normalizeItems(data?.response?.body?.items);
-        for (const station of stations) {
-          const stationKey = cleanStationName(station.stationName);
-          if (stationKey) stationMap.set(stationKey, station);
-        }
-        break;
-      } catch (error) {
-        lastError = error;
-        if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 250));
-      }
-    }
+    const data = await fetchJson(url, '에어코리아 측정소 정보', options);
+    assertPublicData(data, '에어코리아 측정소 정보');
+    const stations = normalizeItems(data?.response?.body?.items).filter(station => cleanStationName(station.stationName));
+    if (!stations.length) throw new Error('주변 에어코리아 측정소를 찾지 못했습니다.');
+    stationCache.set(addr, { at: Date.now(), data: stations });
+    if (stationCache.size > 100) stationCache.delete(stationCache.keys().next().value);
+    return stations;
+  })();
+  stationFlights.set(addr, task);
+  try { return await task; } finally { stationFlights.delete(addr); }
+}
+
+async function fetchAirStations(sidoName, districtName, key, options = {}) {
+  const addresses = [...new Set([districtName, sidoName].map(value => String(value || '').trim()).filter(Boolean))];
+  const results = await Promise.allSettled(addresses.map(addr => fetchStationList(addr, key, options)));
+  const stations = new Map();
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue;
+    for (const station of result.value) stations.set(cleanStationName(station.stationName), station);
   }
-  if (stationMap.size) return [...stationMap.values()];
-  throw lastError || new Error('주변 에어코리아 측정소를 찾지 못했습니다.');
+  if (stations.size) return [...stations.values()];
+  throw results.find(result => result.status === 'rejected')?.reason || new Error('주변 에어코리아 측정소를 찾지 못했습니다.');
 }
 
 async function fetchKmaCurrent(nx, ny, rawKey) {
@@ -524,21 +540,44 @@ function dataGoUrl(endpoint, rawKey, params) {
   return url.toString();
 }
 
-async function fetchJson(url, label) {
-  let lastError = null;
+async function fetchJson(url, label, options = {}) {
+  const timeoutMs = options.timeoutMs ?? 20000;
+  const deadlineMs = options.deadlineMs ?? Date.now() + timeoutMs * 2 + 250;
+  let lastError;
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const remainingMs = deadlineMs - Date.now();
+    if (remainingMs <= 0) break;
+    const controller = new AbortController();
+    let timer;
+    let retryable = true;
     try {
-      const response = await fetch(url, { headers: { Accept: 'application/json' } });
-      const text = await response.text();
-      if (!response.ok) throw new Error(`${label} HTTP 오류 (${response.status})`);
-      try { return JSON.parse(text); }
-      catch { throw new Error(`${label}가 JSON이 아닌 응답을 반환했습니다: ${text.slice(0, 180)}`); }
+      // Race also bounds body consumption when an upstream ignores cancellation.
+      return await Promise.race([
+        (async () => {
+          const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+          if (!response.ok) {
+            retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+            throw new Error(`${label} HTTP 오류 (${response.status})`);
+          }
+          const text = await response.text();
+          try { return JSON.parse(text); }
+          catch { throw new Error(`${label}가 JSON이 아닌 응답을 반환했습니다: ${text.slice(0, 180)}`); }
+        })(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(new Error(`${label} 응답 시간 초과`));
+          }, Math.min(timeoutMs, remainingMs));
+        })
+      ]);
     } catch (error) {
-      lastError = error;
-      if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 250));
-    }
+      lastError = controller.signal.aborted ? new Error(`${label} 응답 시간 초과`) : error;
+      if (!retryable || attempt === 1) break;
+    } finally { clearTimeout(timer); }
+    if (deadlineMs - Date.now() <= 250) break;
+    await new Promise(resolve => setTimeout(resolve, 250));
   }
-  throw lastError;
+  throw lastError || new Error(`${label} 응답 시간 초과`);
 }
 
 function assertKma(data) {

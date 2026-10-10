@@ -1,6 +1,6 @@
 import { requestJson, requestFailureLabel } from './request.js?v=39';
 import { APP_CONFIG } from './running-score-config.js?v=14';
-import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=39';
+import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=41';
 import { fetchAirQuality } from './air-quality.js?v=39';
 import { getStored, setStored, getCache, setCache } from './storage.js?v=19';
 import { currentConditions, dailyCoverage, hourlySlots, poorAir, dailyScore, findBestRunningTimes, includeCurrentObservation, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=39';
@@ -208,4 +208,4 @@ renderFeelSummary();
 calculatorTemplate();renderPaceTable();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=39',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=41',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
