@@ -81,7 +81,16 @@ function renderCurrent(c,w){const overall=scoreCondition(c.score);$('currentWeat
  const airKeys=new Set(['pm2_5','pm10','air_quality_index']);
  const metricTile=([key,label,value,raw])=>{const pending=state.data?.airPending&&airKeys.has(key)&&!Number.isFinite(raw);const condition=pending?{key:'unknown',label:'갱신 중'}:conditionFor(key,raw);return`<div class="metric condition-${condition.key}"><span>${label}</span><strong>${pending?'불러오는 중':value}</strong><em>${condition.label}</em></div>`;};
  const byKey=new Map(items.map(item=>[item[0],item]));
- $('weatherMetrics').innerHTML=primaryKeys.map(key=>metricTile(byKey.get(key))).join('');
+ $('weatherMetrics').innerHTML=primaryKeys.map(key=>{
+   const [,label,value,raw]=byKey.get(key);
+   const condition=conditionFor(key,raw);
+   const display=Number.isFinite(raw)?value:'—';
+   return `<div class="weather-summary-cell">
+     <dt>${label}</dt>
+     <dd><strong class="weather-summary-value">${display}</strong>
+       <span class="weather-summary-badge" data-condition="${condition.key}">${condition.label}</span></dd>
+   </div>`;
+ }).join('');
  $('weatherDetails').innerHTML=items.filter(([key])=>!primaryKeys.includes(key)).map(metricTile).join('');
  renderSunTimes();
 }
@@ -242,4 +251,4 @@ renderFeelSummary();
 calculatorTemplate();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=45',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=46',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
