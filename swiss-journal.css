@@ -214,3 +214,41 @@ footer {border-top:1px solid var(--journal-rule);background:var(--surface)}
   .dashboard .hourly-heading { display:flex; }
   .dashboard .hourly-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+
+/* Compact dashboard layout */
+.header-inner,.dashboard { max-width:1240px; }
+.dashboard .hero { grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); }
+.hero-side { grid-template-rows:auto auto 1fr; }
+.hero-pair { display:flex; flex-wrap:wrap; gap:3px 10px; }
+.hero-pair strong { font-size:clamp(.875rem,1.5vw,1.15rem); }
+.hero-weather>span { font-size:.875rem; }
+.hero .today-best-time { padding-block:8px 0; }
+.summary-sections { gap:12px; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.summary-sections>.card+.card,
+.journal-tools>.wide-section+.wide-section { border:1px solid var(--journal-rule); }
+.summary-sections .metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.weather-details { margin-top:12px; }
+.weather-details summary { cursor:pointer; color:var(--text); font-size:.875rem; font-weight:750; padding-block:8px; }
+.weather-details .source-details { margin-top:10px; }
+.dashboard :is(.grade-pill,.score-condition-badge,.hourly-score,.day-condition,.condition-legend span) {
+  display:inline-flex; align-items:center; gap:5px;
+  border:1px solid currentColor; border-radius:0; font-size:.75rem;
+}
+.dashboard :is(.grade-pill,.score-condition-badge,.hourly-score,.day-condition,.condition-legend span)::before {
+  content:""; width:5px; height:5px; flex:none; border-radius:50%; background:currentColor;
+}
+.journal-tools { gap:12px; grid-template-columns:minmax(0,1.45fr) minmax(0,1fr); }
+.training-guidance { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:16px; align-items:start; }
+.training-options .workout-list { margin-bottom:14px; }
+.training-options h3 { margin:0 0 8px; font-size:1rem; }
+@media(max-width:1050px) {
+  .summary-sections { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .summary-sections>.sun-card { grid-column:1/-1; }
+}
+@media(max-width:820px) {
+  .journal-tools,.training-guidance { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:700px) {
+  .dashboard .hero,.summary-sections { grid-template-columns:minmax(0,1fr); }
+  .hero-weather { padding:12px; }
+}
