@@ -5,7 +5,7 @@ import { fetchAirQuality } from './air-quality.js?v=39';
 import { getStored, setStored, getCache, setCache } from './storage.js?v=19';
 import { currentConditions, dailyCoverage, hourlySlots, poorAir, dailyScore, findBestRunningTimes, includeCurrentObservation, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=39';
 import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=39';
-import { fromPace, fromSpeed, paceTableRows, parsePaceInput, renderPace } from './pace-calculator.js?v=30';
+import { fromPace, fromSpeed, parsePaceInput, renderPace } from './pace-calculator.js?v=30';
 import { renderHourlyChart } from './charts.js?v=39';
 import { solarTimes } from './solar-times.js?v=39';
 import { dateOnly, escapeHtml, formatValue, monthDay, round, secondsToClock, timeOnly, weatherSymbol, weekday } from './utils.js';
@@ -158,7 +158,6 @@ function renderGear(c){$('gearAdvice').innerHTML=Object.entries(gearAdvice(c)).m
 
 function calculatorTemplate(){const html=state.calcMode==='pace'?`<div class="field"><label for="paceInput">페이스 (분:초/km)</label><input id="paceInput" type="text" value="500" inputmode="numeric" autocomplete="off" aria-describedby="paceInputHint"><small id="paceInputHint">숫자만 입력: 530 → 5:30, 600 → 6:00 · 5:30도 가능</small></div>`:`<div class="field"><label for="speedInput">속도 (km/h)</label><input id="speedInput" type="text" inputmode="decimal" autocomplete="off" value="12" aria-describedby="speedInputHint"><small id="speedInputHint">소수점 입력 가능: 10.5 km/h</small></div>`;$('calculatorInputs').innerHTML=html;$('calculatorInputs').querySelectorAll('input').forEach(el=>el.addEventListener('input',calculate));calculate();}
 function calculate(){const pace=state.calcMode==='pace'?parsePaceInput($('paceInput')?.value):null;const speed=state.calcMode==='speed'?Number($('speedInput')?.value.trim().replace(',','.')):null;const data=state.calcMode==='pace'?(pace===null?null:fromPace(pace)):(Number.isFinite(speed)?fromSpeed(speed):null);if(!data||data.paceSeconds<120||data.paceSeconds>1800){$('calculatorError').textContent=state.calcMode==='pace'?'페이스를 200–3000 또는 2:00–30:00 형태로 입력해 주세요.':'속도를 2–30 km/h 범위에서 입력해 주세요.';$('resultPace').textContent='--:--/km';$('resultSpeed').textContent='-- km/h';$('splitResults').innerHTML='';return;}$('calculatorError').textContent='';$('resultPace').textContent=renderPace(data.paceSeconds);$('resultSpeed').textContent=`${round(data.speed,1)} km/h`;$('splitResults').innerHTML=Object.entries(data.splits).map(([n,s])=>`<div class="split-item"><span>${n}</span><strong>${secondsToClock(s)}</strong></div>`).join('');}
-function renderPaceTable(){const {startSeconds,endSeconds,stepSeconds}=APP_CONFIG.paceTable;$('paceTableBody').innerHTML=paceTableRows(startSeconds,endSeconds,stepSeconds).map(r=>`<tr><td>${renderPace(r.pace)}</td><td>${round(r.speed,1)}</td><td>${secondsToClock(r.splits['5K'])}</td><td>${secondsToClock(r.splits['10K'])}</td><td>${secondsToClock(r.splits.Half)}</td><td>${secondsToClock(r.splits.Marathon)}</td></tr>`).join('');}
 
 function initLocationMap(){
   if(state.map||!window.kakao?.maps)return;
@@ -205,7 +204,7 @@ document.querySelectorAll('[data-feel]').forEach(b=>b.addEventListener('click',(
 }));
 $('clearFeels').addEventListener('click',()=>{setStored('feelLog',[]);renderFeelSummary();});
 renderFeelSummary();
-calculatorTemplate();renderPaceTable();loadData();
+calculatorTemplate();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=42',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=43',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
