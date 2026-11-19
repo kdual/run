@@ -83,16 +83,14 @@ html { scroll-padding-top:12px; }
 .hero-weather { padding:11px 12px; }
 .hero-weather strong { font-size:clamp(1rem,2vw,1.4rem); }
 .hero-pair strong { font-size:clamp(.875rem,1.5vw,1.1rem); }
-.hero-today { display:grid; justify-items:end; gap:3px; }
-.hero-today .updated { color:var(--muted); font-size:.75rem; }
-.hero-today-badge,.reference-badge {
+.hero-updated { color:var(--muted); font-size:.75rem; }
+.reference-badge {
   display:inline-flex; align-items:center; gap:4px; padding:3px 7px;
   border:1px solid var(--line); border-radius:var(--badge-radius);
   background:var(--surface-2); color:var(--muted); font-size:.75rem; font-weight:750;
 }
 .dashboard .score-number { font-size:clamp(2.9rem,7vw,4.5rem); }
 .hero .today-best-time { justify-content:flex-start; border:0; padding:6px 0 0; }
-#todaySummary { margin:4px 0 8px; font-size:.8rem; }
 .dashboard :is(.duration-picker,.calculator-tabs) { margin:0; }
 .dashboard :is(.journal-segments,.field input,.score-context select,.icon-button,.location-button) { border-radius:var(--control-radius); }
 .dashboard .journal-segments button { border-radius:0; min-height:40px; }
@@ -169,7 +167,6 @@ html { scroll-padding-top:12px; }
   .dashboard { padding-inline:12px; }
   .dashboard .card { --journal-pad:16px; }
   .dashboard .hero { gap:12px; }
-  .hero-today { justify-items:start; }
   .dashboard .day-card { padding-inline:3px; }
   .dashboard .day-condition { padding:2px 3px; font-size:.68rem; gap:3px; }
   .dashboard .coach-insight { padding:8px; }
