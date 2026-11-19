@@ -1,15 +1,17 @@
 /* B5 / Swiss data journal — presentation only. Functional state colors stay semantic. */
 :root {
-  --bg:#f2f1ed; --surface:#fff; --surface-2:#f6f5f1;
-  --text:#171817; --muted:#575852; --line:#a2a39a;
-  --primary:#b9143c; --primary-soft:#fce9ee; --shadow:none;
-  --journal-rule:#232421; --journal-mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  --bg:#fff; --surface:#fff; --surface-2:#f7f7f5;
+  --text:#111; --muted:#525252; --line:#d4d4d8;
+  --primary:#b91c1c; --primary-soft:#f1f1ef; --shadow:none;
+  --focus:var(--primary); --good:var(--text); --danger:var(--primary);
+  --journal-rule:#18181b; --journal-mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
   --journal-pad:clamp(16px,2vw,26px);
 }
 [data-theme="dark"] {
-  --bg:#121311; --surface:#1a1b18; --surface-2:#222320;
-  --text:#f4f2ec; --muted:#bdbeb4; --line:#686a60;
-  --primary:#ff829b; --primary-soft:#42222a; --journal-rule:#9b9e91;
+  --bg:#101215; --surface:#171a1f; --surface-2:#202328;
+  --text:#f3f4f6; --muted:#b5bac3; --line:#444a53;
+  --primary:#f87171; --primary-soft:#292d34; --journal-rule:#777c85;
+  --focus:var(--primary); --good:var(--text); --danger:var(--primary);
 }
 body {font-family:Inter,"Noto Sans KR",system-ui,-apple-system,sans-serif; word-break:keep-all; overflow-wrap:anywhere}
 :is(.brand,.eyebrow,.clock,.score-number,.today-score-value>strong,.today-best-time>strong,
@@ -151,18 +153,6 @@ footer {border-top:1px solid var(--journal-rule);background:var(--surface)}
 }
 
 /* Shared controls and condition colors */
-:root {
-  --condition-good-ink: #075da8;
-  --condition-normal-ink: #14753a;
-  --condition-bad-ink: #805700;
-  --condition-very-bad-ink: #aa1f1f;
-}
-[data-theme="dark"] {
-  --condition-good-ink: #8dccff;
-  --condition-normal-ink: #8de0a4;
-  --condition-bad-ink: #ffdc78;
-  --condition-very-bad-ink: #ff9f9d;
-}
 .journal-icon { display:inline-block; width:1em; height:1em; vertical-align:-.12em; }
 :is(.weather-icon,.day-icon) .journal-icon { width:24px; height:24px; }
 .dashboard .hero { border-width:1px; border-top:3px solid var(--primary); }
@@ -204,12 +194,8 @@ footer {border-top:1px solid var(--journal-rule);background:var(--surface)}
 .dashboard :is(.condition-legend span,.day-condition,.hourly-metrics em,.metric em) { border-radius:0; }
 .dashboard .condition-legend span { font-size:.75rem; }
 .dashboard .day-condition { max-width:100%; }
-[data-score-condition="good"] { --score-bar:var(--condition-good-ink); }
-[data-score-condition="normal"] { --score-bar:var(--condition-normal-ink); }
-[data-score-condition="bad"] { --score-bar:var(--condition-bad-ink); }
-[data-score-condition="very-bad"] { --score-bar:var(--condition-very-bad-ink); }
 .dashboard :is(.week-score-track,.workout-row .bar,.week-score-track i,.workout-row .bar i) { border-radius:0; }
-.dashboard :is(.week-score-track i,.workout-row .bar i) { background:var(--score-bar,var(--muted)); }
+.dashboard :is(.week-score-track i,.workout-row .bar i) { background:var(--text); }
 @media(max-width:700px) {
   .dashboard .hourly-heading { display:flex; }
   .dashboard .hourly-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -288,18 +274,62 @@ footer {border-top:1px solid var(--journal-rule);background:var(--surface)}
   white-space:nowrap;
 }
 .weather-summary-badge {
-  --weather-state:var(--muted);
   display:inline-flex;
   align-items:center;
+  gap:5px;
   padding:1px 5px;
-  border:1px solid currentColor;
-  color:var(--weather-state);
-  background:color-mix(in srgb,var(--weather-state) 7%, var(--surface));
+  border:1px solid var(--line);
+  color:var(--text);
+  background:transparent;
   font-size:.75rem;
   line-height:1.35;
   font-weight:750;
 }
-.weather-summary-badge[data-condition="good"] { --weather-state:var(--condition-good-ink); }
-.weather-summary-badge[data-condition="normal"] { --weather-state:var(--condition-normal-ink); }
-.weather-summary-badge[data-condition="bad"] { --weather-state:var(--condition-bad-ink); }
-.weather-summary-badge[data-condition="very-bad"] { --weather-state:var(--condition-very-bad-ink); }
+
+/* Status uses a dot and text, while readings stay on a neutral surface. */
+:root .dashboard :is(.condition-good,.condition-normal,.condition-bad,.condition-very-bad,.condition-unknown) {
+  background:var(--surface)!important;
+  color:var(--text);
+}
+:root .dashboard :is(.condition-text-good,.condition-text-normal,.condition-text-bad,.condition-text-very-bad) {
+  color:var(--text)!important;
+}
+.dashboard :is(.grade-pill,.score-condition-badge,.hourly-score,.day-condition,.condition-legend span) {
+  border-color:var(--line);
+}
+.weather-summary-badge::before,
+.dashboard :is(.metric,.hourly-metrics>span) em::before {
+  content:"";
+  display:inline-block;
+  width:5px;
+  height:5px;
+  flex:none;
+  border-radius:50%;
+  background:currentColor;
+}
+.dashboard :is(.metric,.hourly-metrics>span) em {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  background:transparent;
+  color:var(--text);
+  border:1px solid var(--line);
+}
+.dashboard :is(.metric strong,.hourly-metrics>span strong) { color:var(--text); }
+.dashboard :is(.metric>span,.hourly-metrics small,.data-source,.chart-tooltip span) { color:var(--muted); }
+.dashboard :is(.condition-unknown,.weather-summary-badge[data-condition="unknown"])::before,
+.dashboard .condition-unknown em::before { background:transparent; border:1px solid currentColor; }
+.dashboard .hero { border-top-color:var(--journal-rule); }
+.day-card.active { box-shadow:inset 0 -3px var(--text); }
+.dashboard .chart .score-area { fill:var(--surface-2); }
+.dashboard .chart .point:is(:hover,:focus,.selected) { fill:var(--text); }
+.dashboard .chart .selection-guide { stroke:var(--muted); }
+.dashboard .tooltip-dot { background:var(--text); }
+.dashboard :is(.weekly-diff[data-trend],.offline-banner,.error-banner) {
+  background:var(--surface-2);
+  color:var(--text);
+  border:1px solid var(--line);
+}
+.dashboard .error-banner { border-inline-start:3px solid var(--primary); }
+[data-theme="dark"] .location-map { border-color:var(--line); }
+[data-theme="dark"] .location-result.selected { background:var(--primary-soft); }
