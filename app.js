@@ -110,18 +110,18 @@ function renderBest(best){$('bestTimes').innerHTML=best.length?best.map((b,i)=>`
 
 function renderCurrent(c,w){const overall=scoreCondition(c.score);$('currentWeatherCard').dataset.condition=overall.key;$('currentWeatherCondition').className=`score-condition-badge condition-${overall.key}`;$('currentWeatherCondition').textContent=`${c.score??'--'}점 · ${overall.label}`;$('weatherIcon').innerHTML=weatherIcon(c.weather_code);const items=[['temperature_2m','기온',formatValue(c.temperature_2m,'°C',1),c.temperature_2m],['apparent_temperature','체감',formatValue(c.apparent_temperature,'°C',1),c.apparent_temperature],['relative_humidity_2m','습도',formatValue(c.relative_humidity_2m,'%'),c.relative_humidity_2m],['dew_point_2m','이슬점',formatValue(c.dew_point_2m,'°C',1),c.dew_point_2m],['precipitation_probability','강수확률',formatValue(c.precipitation_probability,'%'),c.precipitation_probability],['precipitation','강수량',formatValue(c.precipitation,' mm',1),c.precipitation],['wind_speed_10m','바람',formatValue(c.wind_speed_10m,' km/h',1),c.wind_speed_10m],['air_stagnation_index','대기정체',formatValue(c.air_stagnation_index,'',0),c.air_stagnation_index],['pm2_5','PM2.5',formatValue(c.pm2_5,' μg/m³',1),c.pm2_5],['pm10','PM10',formatValue(c.pm10,' μg/m³',1),c.pm10],['air_quality_index','통합대기지수',formatValue(c.air_quality_index,''),c.air_quality_index],['uv_index','UV',formatValue(c.uv_index,'',1),c.uv_index]];const primaryKeys=['temperature_2m','apparent_temperature','air_stagnation_index','precipitation_probability'];
  const airKeys=new Set(['pm2_5','pm10','air_quality_index']);
- const metricTile=([key,label,value,raw])=>{const pending=state.data?.airPending&&airKeys.has(key)&&!Number.isFinite(raw);const condition=pending?{key:'unknown',label:'갱신 중'}:conditionFor(key,raw);return`<div class="metric condition-${condition.key}"><span>${label}</span><strong>${pending?'불러오는 중':value}</strong><em>${condition.label}</em></div>`;};
- const byKey=new Map(items.map(item=>[item[0],item]));
- $('weatherMetrics').innerHTML=primaryKeys.map(key=>{
-   const [,label,value,raw]=byKey.get(key);
-   const condition=conditionFor(key,raw);
+ const metricTile=([key,label,value,raw])=>{
+   const pending=state.data?.airPending&&airKeys.has(key)&&!Number.isFinite(raw);
+   const condition=pending?{key:'unknown',label:'갱신 중'}:conditionFor(key,raw);
    const display=Number.isFinite(raw)?value:'—';
    return `<div class="weather-summary-cell">
      <dt>${label}</dt>
      <dd><strong class="weather-summary-value">${display}</strong>
        <span class="weather-summary-badge" data-condition="${condition.key}">${condition.label}</span></dd>
    </div>`;
- }).join('');
+ };
+ const byKey=new Map(items.map(item=>[item[0],item]));
+ $('weatherMetrics').innerHTML=primaryKeys.map(key=>metricTile(byKey.get(key))).join('');
  $('weatherDetails').innerHTML=items.filter(([key])=>!primaryKeys.includes(key)).map(metricTile).join('');
  renderSunTimes();
 }
@@ -317,4 +317,4 @@ renderFeelSummary();
 calculatorTemplate();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=52',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=53',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
