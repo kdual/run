@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="./styles.css?v=39">
   <link rel="stylesheet" href="./responsive.css?v=20">
   <link rel="stylesheet" href="./swiss-journal.css?v=5">
-  <link rel="stylesheet" href="./reference-layout.css?v=3">
+  <link rel="stylesheet" href="./reference-layout.css?v=4">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
 <body>
@@ -111,7 +111,7 @@
     </section>
 
     <div class="journal-tools">
-      <section class="card wide-section" aria-labelledby="hourlyTitle">
+      <section class="card wide-section hourly-card" aria-labelledby="hourlyTitle">
         <div class="section-heading hourly-heading"><div><p class="section-index">05 / HOURLY</p><h2 id="hourlyTitle">시간대별 지표<span id="hourlySelection"></span></h2></div><div class="segmented journal-segments" role="group" aria-label="예보 날짜"><button type="button" class="active" data-hourly-day="0" aria-pressed="true">오늘</button><button type="button" data-hourly-day="1" aria-pressed="false">내일</button></div></div>
         <div id="hourlyDetail" class="hourly-detail" aria-live="polite">시간대별 지표를 불러오는 중입니다.</div>
         <details class="weather-details hourly-chart-detail">
@@ -177,6 +177,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=50"></script>
+  <script type="module" src="./app.js?v=51"></script>
 </body>
 </html>

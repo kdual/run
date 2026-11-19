@@ -104,15 +104,21 @@ html { scroll-padding-top:12px; }
 #currentWeatherCard .data-source { margin-top:8px; }
 .sun-card #sunStatus { margin:10px 0 4px; }
 .dashboard .hourly-detail { padding:0; border:0; background:transparent; }
-.hourly-detail-heading { flex-wrap:wrap; gap:6px; }
+.dashboard .hourly-card .section-heading { padding-bottom:8px; margin-bottom:8px; }
+.hourly-detail-heading { flex-wrap:wrap; gap:4px 8px; margin-bottom:8px; }
 .hourly-detail-heading>strong { font-size:.8rem; color:var(--muted); }
-.dashboard .hourly-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.dashboard .hourly-metrics {
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px; border:0; background:transparent; overflow:visible;
+}
 .dashboard .hourly-metrics>span {
-  display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 8px; padding:10px 11px;
+  display:flex; flex-wrap:wrap; align-items:baseline; align-content:start;
+  min-width:0; gap:2px 5px; padding:6px 8px;
+  border:1px solid var(--line); border-radius:var(--control-radius);
 }
 .dashboard .hourly-metrics>span>small { flex-basis:100%; }
 .dashboard .hourly-metrics>span>strong {
-  color:var(--status-ink,var(--text)); font:800 1rem/1.35 var(--journal-mono); margin:0;
+  color:var(--status-ink,var(--text)); font:800 .9375rem/1.3 var(--journal-mono); margin:0;
 }
 .dashboard .hourly-metrics>span>em {
   color:var(--status-ink,var(--text)); border-color:var(--status-ink,var(--line));
@@ -154,9 +160,8 @@ html { scroll-padding-top:12px; }
 @media(max-width:1240px) { .site-header { margin-inline:16px; } }
 @media(max-width:960px) {
   .dashboard .hero,.summary-sections,.journal-tools,.training-guidance { grid-template-columns:minmax(0,1fr); }
-  .dashboard .hourly-metrics { grid-template-columns:minmax(0,1fr); }
+  .dashboard .hourly-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .dashboard .weekly-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
-  .dashboard .hourly-metrics>span { min-height:54px; }
 }
 @media(max-width:580px) {
   .site-header { margin-inline:12px; }
