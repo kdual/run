@@ -127,7 +127,7 @@ html { scroll-padding-top:12px; }
 .hourly-chart-detail .chart { margin-top:6px; }
 .dashboard .split-results { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .dashboard .weekly-grid {
-  grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px;
+  grid-template-columns:repeat(var(--forecast-columns,4),minmax(0,1fr)); gap:8px;
   border:0; background:var(--surface); overflow:visible;
 }
 .dashboard .day-card {
@@ -161,7 +161,6 @@ html { scroll-padding-top:12px; }
 @media(max-width:960px) {
   .dashboard .hero,.summary-sections,.journal-tools,.training-guidance { grid-template-columns:minmax(0,1fr); }
   .dashboard .hourly-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .dashboard .weekly-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
 }
 @media(max-width:580px) {
   .site-header { margin-inline:12px; }

@@ -190,10 +190,41 @@ function renderCoach(c,best){
 }
 
 function renderWeekly(w,hourly){
- const today=currentSeoulDate(),todayIndex=Math.max(0,w.daily.time.indexOf(today)),scores=w.daily.time.map(date=>dailyScore(rowsForDate(hourly,date))),finite=scores.filter(Number.isFinite),max=finite.length?Math.max(...finite):null;
- const selected=state.selectedWeekDate&&w.daily.time.includes(state.selectedWeekDate)?w.daily.time.indexOf(state.selectedWeekDate):todayIndex;
- $('weeklyCards').innerHTML=w.daily.time.map((date,i)=>{const score=scores[i],available=Number.isFinite(score),condition=scoreCondition(score);return `<button type="button" class="day-card ${i===selected?'active':''} ${available?'':'unavailable'}" data-day-index="${i}" aria-pressed="${i===selected}" aria-label="${monthDay(date)} ${available?`${score}점 ${condition.label}`:'예보 없음'}"><span>${date===today?'오늘':weekday(date)} ${Number(date.slice(-2))}</span><strong>${score??'—'}</strong><div class="week-score-track" data-score-condition="${condition.key}" aria-hidden="true"><i style="width:${score??0}%"></i></div><small class="day-condition condition-${condition.key}">${available?(score===max?'BEST':condition.label):'미정'}</small></button>`;}).join('');
- document.querySelectorAll('.day-card').forEach(btn=>btn.addEventListener('click',()=>{state.selectedWeekDate=w.daily.time[Number(btn.dataset.dayIndex)];document.querySelectorAll('.day-card').forEach(b=>{b.classList.toggle('active',b===btn);b.setAttribute('aria-pressed',String(b===btn));});renderSelectedDay(Number(btn.dataset.dayIndex),w,hourly,scores);}));renderSelectedDay(selected,w,hourly,scores);
+ const today=currentSeoulDate();
+ const days=w.daily.time;
+ const scores=days.map(date=>dailyScore(rowsForDate(hourly,date)));
+ const forecast=days.map((date,index)=>({date,index,score:scores[index]}))
+   .filter(({date,score})=>date>=today&&Number.isFinite(score))
+   .sort((a,b)=>a.date.localeCompare(b.date))
+   .slice(0,4);
+ const cards=$('weeklyCards');
+ if(!forecast.length){
+   cards.replaceChildren();
+   $('selectedDayDetail').innerHTML='<p class="muted">표시할 수 있는 러닝 예보가 없습니다.</p>';
+   return;
+ }
+ cards.style.setProperty('--forecast-columns',String(forecast.length));
+ const selected=(forecast.find(day=>day.date===state.selectedWeekDate)??forecast[0]).index;
+ const bestScore=Math.max(...forecast.map(day=>day.score));
+ cards.innerHTML=forecast.map(({date,index,score})=>{
+   const condition=scoreCondition(score);
+   return `<button type="button" class="day-card ${index===selected?'active':''}" data-day-index="${index}"
+    aria-pressed="${index===selected}" aria-label="${monthDay(date)} ${score}점 ${condition.label}">
+    <span>${date===today?'오늘':weekday(date)} ${Number(date.slice(-2))}</span><strong>${score}</strong>
+    <div class="week-score-track" data-score-condition="${condition.key}" aria-hidden="true"><i style="width:${score}%"></i></div>
+    <small class="day-condition condition-${condition.key}">${score===bestScore?'BEST':condition.label}</small></button>`;
+ }).join('');
+ const buttons=cards.querySelectorAll('.day-card');
+ for(const button of buttons)button.addEventListener('click',()=>{
+   const index=Number(button.dataset.dayIndex);
+   state.selectedWeekDate=days[index];
+   for(const item of buttons){
+     item.classList.toggle('active',item===button);
+     item.setAttribute('aria-pressed',String(item===button));
+   }
+   renderSelectedDay(index,w,hourly,scores);
+ });
+ renderSelectedDay(selected,w,hourly,scores);
 }
 function renderSelectedDay(i,w,hourly,scores){
  const date=w.daily.time[i],allRows=rowsForDate(hourly,date),available=Number.isFinite(scores[i]),condition=scoreCondition(scores[i]);
@@ -286,4 +317,4 @@ renderFeelSummary();
 calculatorTemplate();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=51',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=52',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
