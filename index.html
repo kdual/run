@@ -10,7 +10,7 @@
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=39">
   <link rel="stylesheet" href="./responsive.css?v=20">
-  <link rel="stylesheet" href="./swiss-journal.css?v=1">
+  <link rel="stylesheet" href="./swiss-journal.css?v=2">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
 <body>
@@ -19,7 +19,7 @@
     <div class="header-inner">
       <a class="brand" href="#top" aria-label="RUNWISE 홈"><span class="brand-mark">R</span><span>RUNWISE</span></a>
       <div class="header-meta">
-        <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog">📍 <span id="headerLocation">서울 송파구</span></button>
+        <button id="locationButton" class="location-button" type="button" aria-haspopup="dialog"><svg class="journal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 22s7-6.1 7-12a7 7 0 0 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="10" r="2.5"/></svg> <span id="headerLocation">서울 송파구</span></button>
         <span id="headerClock" class="clock" aria-live="off"></span>
       </div>
       <div class="header-actions">
@@ -32,11 +32,10 @@
   <main id="main" class="dashboard" tabindex="-1">
     <div id="offlineBanner" class="offline-banner" hidden>오프라인입니다. 마지막 저장 데이터를 표시합니다.</div>
     <div id="errorBanner" class="error-banner" role="alert" hidden></div>
-    <div class="advisory-strip"><div id="officialAlerts" class="official-alerts" role="status" aria-live="polite"></div><a href="https://www.weather.go.kr/w/weather/warning/status.do" target="_blank" rel="noopener noreferrer">기상청 현재 특보 확인 ↗</a></div>
+    <div class="advisory-strip"><div id="officialAlerts" class="official-alerts" role="status" aria-live="polite"></div><a href="https://www.weather.go.kr/w/weather/warning/status.do" target="_blank" rel="noopener noreferrer">기상청 특보</a></div>
 
     <section id="top" class="hero card" aria-labelledby="runNowTitle">
       <div class="hero-main">
-        <p class="eyebrow">01 / RUN NOW</p>
         <h1 id="runNowTitle">지금 뛰어도 될까?</h1>
         <div class="score-lockup">
           <strong id="currentScore" class="score-number skeleton-text">--</strong><span>점</span>
@@ -65,8 +64,8 @@
 
     <section class="summary-sections" aria-label="오늘의 러닝 환경">
       <article class="card best-times-card" aria-labelledby="bestTimesTitle">
-        <div class="section-heading"><div><p class="eyebrow">02 / BEST TIME</p><h2 id="bestTimesTitle">오늘 추천 시간 TOP 3</h2></div></div>
-        <div class="duration-picker" role="group" aria-label="러닝 시간"><button type="button" data-duration="30">30분</button><button type="button" data-duration="60">60분</button><button type="button" data-duration="120">롱런 120분</button></div>
+        <div class="section-heading"><div><h2 id="bestTimesTitle">오늘 추천 시간 TOP 3</h2></div></div>
+        <div class="duration-picker journal-segments" role="group" aria-label="러닝 시간"><button type="button" data-duration="30">30분</button><button type="button" data-duration="60">60분</button><button type="button" data-duration="120">120분</button></div>
         <ol id="bestTimes" class="best-list" aria-live="polite">
           <li class="skeleton-row"></li><li class="skeleton-row"></li><li class="skeleton-row"></li>
         </ol>
@@ -74,20 +73,20 @@
       </article>
 
       <article id="currentWeatherCard" class="card current-card" aria-labelledby="currentWeatherTitle">
-        <div class="section-heading"><div><p class="eyebrow">03 / CURRENT</p><h2 id="currentWeatherTitle">현재 날씨</h2><small id="observationSource" class="data-source">기상청 생활기상지수·에어코리아 연결 중</small></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
+        <div class="section-heading"><div><h2 id="currentWeatherTitle">현재 날씨</h2><small id="observationSource" class="data-source">기상청 생활기상지수·에어코리아 연결 중</small></div><div class="current-heading-status"><span id="currentWeatherCondition" class="score-condition-badge">분석 중</span><span id="weatherIcon" class="weather-icon" aria-hidden="true">◌</span></div></div>
         <div id="weatherMetrics" class="metric-grid"></div>
         <div class="source-details"><span id="airSourceDetail">대기 측정소 확인 중</span><span id="forecastSourceDetail">미래 대기질 예보 확인 중</span></div>
       </article>
 
       <article class="card sun-card" aria-labelledby="sunCardTitle">
-        <div class="section-heading"><div><p class="eyebrow">04 / DAYLIGHT</p><h2 id="sunCardTitle">일출 · 일몰과 박명</h2></div></div>
+        <div class="section-heading"><div><h2 id="sunCardTitle">일출 · 일몰과 박명</h2></div></div>
         <div class="sun-timeline" aria-label="오늘의 일출, 일몰, 박명 시각">
-          <div class="sun-period"><h3>🌤 새벽 · 일출</h3><div class="sun-events">
+          <div class="sun-period"><h3><svg class="journal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg> 새벽 · 일출</h3><div class="sun-events">
             <div><span>첫빛 <small>천문박명 시작</small></span><strong id="astronomicalDawn">--:--</strong></div>
             <div><span>항해박명 <small>BMNT</small></span><strong id="nauticalDawn">--:--</strong></div>
             <div><span>일출</span><strong id="sunrise">--:--</strong></div>
           </div></div>
-          <div class="sun-period"><h3>🌙 일몰 · 밤</h3><div class="sun-events">
+          <div class="sun-period"><h3><svg class="journal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 15A8 8 0 0 1 9 4a9 9 0 1 0 11 11Z"/></svg> 일몰 · 밤</h3><div class="sun-events">
             <div><span>일몰</span><strong id="sunset">--:--</strong></div>
             <div><span>항해박명 종료 <small>EENT</small></span><strong id="nauticalDusk">--:--</strong></div>
             <div><span>완전한 어둠 <small>천문박명 종료</small></span><strong id="astronomicalDusk">--:--</strong></div>
@@ -100,7 +99,7 @@
 
     <div class="journal-tools">
       <section class="card wide-section" aria-labelledby="hourlyTitle">
-        <div class="section-heading hourly-heading"><div><p class="eyebrow">05 / HOURLY</p><h2 id="hourlyTitle">시간대별 Running Score</h2><p class="chart-hint">점 위에 마우스를 올리거나 선택하면 해당 시간의 세부 조건을 확인할 수 있습니다.</p></div><div class="segmented"><button class="active" data-hourly-day="0">오늘</button><button data-hourly-day="1">내일</button></div></div>
+        <div class="section-heading hourly-heading"><div><h2 id="hourlyTitle">시간대별 Running Score</h2><p class="chart-hint">점 위에 마우스를 올리거나 선택하면 해당 시간의 세부 조건을 확인할 수 있습니다.</p></div><div class="segmented journal-segments" role="group" aria-label="예보 날짜"><button type="button" class="active" data-hourly-day="0" aria-pressed="true">오늘</button><button type="button" data-hourly-day="1" aria-pressed="false">내일</button></div></div>
         <div id="hourlyChart" class="chart" role="img" aria-label="시간대별 러닝 점수 선 그래프"></div>
         <button id="hourlyNextDay" class="chart-next-day" type="button" hidden>내일 00:00 이후 시간대 보기 <span aria-hidden="true">→</span></button>
         <div id="hourlyDetail" class="hourly-detail" aria-live="polite">그래프의 시간대를 선택하면 세부 조건을 확인할 수 있습니다.</div>
@@ -108,13 +107,13 @@
           <p id="hourlyDataNote" class="muted">시간대별 점수의 자료 기준을 확인하는 중입니다.</p>
       </section>
       <section id="pace" class="card wide-section" aria-labelledby="paceTitle">
-        <div class="section-heading"><div><p class="eyebrow">06 / PACE LAB</p><h2 id="paceTitle">목표 페이스 계산기</h2></div></div>
-        <div class="calculator-tabs" role="tablist" aria-label="계산 방식">
-          <button class="active" role="tab" aria-selected="true" data-calc-mode="pace">페이스 입력</button>
-          <button role="tab" aria-selected="false" data-calc-mode="speed">속도 입력</button>
+        <div class="section-heading"><div><h2 id="paceTitle">목표 페이스 계산기</h2></div></div>
+        <div class="calculator-tabs journal-segments" role="tablist" aria-label="계산 방식">
+          <button type="button" class="active" role="tab" aria-selected="true" id="paceModeTab" aria-controls="calculatorPanel" data-calc-mode="pace">페이스 입력</button>
+          <button type="button" role="tab" aria-selected="false" id="speedModeTab" aria-controls="calculatorPanel" tabindex="-1" data-calc-mode="speed">속도 입력</button>
         </div>
-        <div id="calculatorInputs" class="calculator-inputs"></div>
-        <div class="calculator-results">
+        <div id="calculatorPanel" role="tabpanel" aria-labelledby="paceModeTab"><div id="calculatorInputs" class="calculator-inputs"></div></div>
+        <div class="calculator-results" aria-live="polite" aria-atomic="true">
           <div><span>필요 페이스</span><strong id="resultPace">--:--/km</strong></div>
           <div><span>필요 속도</span><strong id="resultSpeed">-- km/h</strong></div>
         </div>
@@ -124,13 +123,13 @@
     </div>
 
     <section class="card wide-section" aria-labelledby="weeklyTitle">
-      <div class="section-heading weekly-heading"><div><p class="eyebrow">07 / 7-DAY</p><h2 id="weeklyTitle">이번 주 러닝 날씨</h2></div><p id="comparisonMessage" class="weekly-diff">오늘과 내일을 비교하는 중입니다.</p></div>
+      <div class="section-heading weekly-heading"><div><h2 id="weeklyTitle">이번 주 러닝 날씨</h2></div><p id="comparisonMessage" class="weekly-diff">오늘과 내일을 비교하는 중입니다.</p></div>
       <div id="weeklyCards" class="weekly-grid"></div>
       <div id="selectedDayDetail" class="selected-day-detail"></div>
     </section>
 
     <section class="card wide-section coach-section" aria-labelledby="coachTitle">
-      <div class="section-heading"><div><p class="eyebrow">08 / COACH</p><h2 id="coachTitle">러닝 코치</h2></div><span class="rule-badge">RULE-BASED</span></div>
+      <div class="section-heading"><div><h2 id="coachTitle">러닝 코치</h2></div></div>
       <p id="coachMessage" class="coach-copy">현재 조건을 분석하고 있습니다.</p>
       <div id="coachInsights" class="coach-insights" aria-label="현재 환경을 바탕으로 한 러닝 계획"></div>
       <div id="alerts" class="alert-list"></div>
@@ -138,11 +137,11 @@
 
     <section class="dashboard-grid split-grid">
       <article class="card">
-        <div class="section-heading"><div><p class="eyebrow">09 / WORKOUT</p><h2>추천 훈련</h2></div></div>
+        <div class="section-heading"><div><h2>추천 훈련</h2></div></div>
         <div id="workoutScores" class="workout-list"></div>
       </article>
       <article class="card">
-        <div class="section-heading"><div><p class="eyebrow">10 / GEAR</p><h2>복장 · 환경 안내</h2></div></div>
+        <div class="section-heading"><div><h2>복장 · 환경 안내</h2></div></div>
         <div id="gearAdvice" class="gear-grid"></div>
         <p class="fine-print">현재 날씨를 바탕으로 한 간이 추천입니다. 출발 시간의 예보와 개인 체감·운동 강도도 확인하세요.</p>
       </article>
@@ -164,6 +163,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=43"></script>
+  <script type="module" src="./app.js?v=44"></script>
 </body>
 </html>

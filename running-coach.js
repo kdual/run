@@ -12,6 +12,9 @@ export function coachMessage(c, best) {
   if (safe(c.apparent_temperature,0) >= 28) messages.push('체감온도가 높아 페이스를 낮추고 수분을 자주 보충하세요.');
   if (runningScoreDeductions(c).sunExposure>=8) messages.push('낮 시간 햇빛 열부담이 예상되어 그늘이 있는 코스나 해가 약한 시간을 권합니다.');
   if (safe(c.wind_gusts_10m,0) >= 35) messages.push('돌풍이 강해 노출이 적은 왕복 코스를 권합니다.');
+  if (safe(c.apparent_temperature,0) < 0) {
+    messages.push('출발 전 몸을 충분히 풀고, 바람이 드는 구간에서는 체온 유지에 유의하세요.');
+  }
   if (!messages.length && c.score >= 85) messages.push('선선하고 큰 방해 요소가 없어 러닝하기 좋은 조건입니다.');
   else if (!messages.length) messages.push('무리하지 않는 강도로 달리기 무난한 조건입니다.');
   if (best && best.score >= c.score + 5) messages.push(`${best.start.slice(11,16)} 이후가 현재보다 더 좋습니다.`);
@@ -23,6 +26,7 @@ export function runNowMessage(c, best) {
   if(!Number.isFinite(c.score))return '최신 기상 자료를 확인한 뒤 러닝 조건을 판단해 주세요.';
   if(poorAir(c))return '대기질이 좋지 않아 야외 고강도 러닝은 권장하지 않습니다.';
   if(c.score<40)return '현재는 실내 운동이나 휴식을 권합니다.';
+  if (safe(c.apparent_temperature,0) < 0) return '체감온도가 영하입니다. 몸을 충분히 풀고 출발하세요.';
   if (c.score >= 85) return '지금 러닝하기 좋은 조건입니다.';
   if (best && best.score >= c.score + 5) return `지금도 가능하지만 ${best.start.slice(11,16)} 이후가 더 좋은 조건입니다.`;
   if (safe(c.pm2_5,0)>35) return '미세먼지로 인해 야외 고강도 러닝은 권장하지 않습니다.';
