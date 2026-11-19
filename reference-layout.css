@@ -107,9 +107,17 @@ html { scroll-padding-top:12px; }
 .hourly-detail-heading { flex-wrap:wrap; gap:6px; }
 .hourly-detail-heading>strong { font-size:.8rem; color:var(--muted); }
 .dashboard .hourly-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
-.dashboard .hourly-metrics>span { padding:10px 11px; }
-.dashboard .hourly-metrics strong { font:800 1rem/1.35 var(--journal-mono); margin-top:3px; }
-.dashboard .hourly-metrics em { margin-top:4px; font-size:.72rem; }
+.dashboard .hourly-metrics>span {
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 8px; padding:10px 11px;
+}
+.dashboard .hourly-metrics>span>small { flex-basis:100%; }
+.dashboard .hourly-metrics>span>strong {
+  color:var(--status-ink,var(--text)); font:800 1rem/1.35 var(--journal-mono); margin:0;
+}
+.dashboard .hourly-metrics>span>em {
+  color:var(--status-ink,var(--text)); border-color:var(--status-ink,var(--line));
+  margin:0; font-size:.72rem;
+}
 .hourly-chart-detail .chart { margin-top:6px; }
 .dashboard .split-results { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .dashboard .weekly-grid {
@@ -140,13 +148,9 @@ html { scroll-padding-top:12px; }
   color:var(--status-ink,var(--text));
   background:color-mix(in srgb,var(--status-ink,var(--surface)) 5%,var(--surface))!important;
 }
-.dashboard :is(.hourly-metrics strong,.metric em,.hourly-metrics em) { color:var(--status-ink,var(--text)); }
+.dashboard .metric em { color:var(--status-ink,var(--text)); }
 .dashboard :is(.week-score-track i,.workout-row .bar i) { background:var(--status-ink,var(--text)); }
 .dashboard :is(.hero-main,.current-card) { --status-ink:initial; }
-:root:not([data-design="ink"]) .dashboard .hourly-metrics em {
-  position:absolute; width:1px; height:1px; overflow:hidden;
-  clip-path:inset(50%); white-space:nowrap;
-}
 @media(max-width:1240px) { .site-header { margin-inline:16px; } }
 @media(max-width:960px) {
   .dashboard .hero,.summary-sections,.journal-tools,.training-guidance { grid-template-columns:minmax(0,1fr); }
