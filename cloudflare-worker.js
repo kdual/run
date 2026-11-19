@@ -152,8 +152,14 @@ async function airRoute(url, env, headers) {
 
 async function cachedPublicRoute(request, url, env, headers, handler) {
   const cache = caches.default;
-  const cached = await cache.match(request);
-  if (cached) return new Response(cached.body, { status: cached.status, headers: { ...Object.fromEntries(cached.headers), ...headers } });
+  let cached;
+  try { cached = await cache.match(request); } catch {}
+  if (cached) {
+    // Headers.set replaces existing values regardless of header-name casing.
+    const cachedHeaders = new Headers(cached.headers);
+    for (const [name, value] of Object.entries(headers)) cachedHeaders.set(name, value);
+    return new Response(cached.body, { status: cached.status, headers: cachedHeaders });
+  }
   const response = await handler(url, env, headers);
   let cacheable = response.ok;
   if (cacheable && url.pathname === '/air') {
