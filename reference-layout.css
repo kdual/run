@@ -1,0 +1,152 @@
+/* Shared layout from the reference dashboard. */
+:root {
+  --card-radius:0px;
+  --control-radius:0px;
+  --badge-radius:0px;
+  --design-shadow:none;
+  --design-hero-rule:1px solid var(--journal-rule);
+  --status-good:#1d4ed8;
+  --status-normal:#15803d;
+  --status-bad:#a04b0b;
+  --status-very-bad:#b91c1c;
+}
+:root[data-design="swiss"] { --bg:#f9f8f6; --line:#d4d1c9; --surface-2:#f4f2ec; --journal-rule:#111; }
+:root[data-design="paper"] {
+  --bg:#f8f6f1; --surface:#fffefb; --surface-2:#f2efe7; --text:#1c1917; --muted:#67625a;
+  --journal-rule:#cfc9bc; --line:#e5e0d5; --card-radius:4px; --control-radius:3px; --badge-radius:2px;
+  --design-shadow:0 1px 2px #1c19170a; --design-hero-rule:3px solid var(--text);
+}
+:root[data-design="modern"] {
+  --bg:#f5f6f8; --surface:#fff; --surface-2:#f8fafc; --text:#0f172a; --muted:#525e70;
+  --journal-rule:#c7d0dc; --line:#e0e6ed; --card-radius:8px; --control-radius:6px; --badge-radius:5px;
+  --design-shadow:0 2px 10px #0f172a0a; --design-hero-rule:3px solid var(--primary);
+}
+:root[data-design="ink"] { --design-hero-rule:3px solid var(--journal-rule); }
+:root[data-design="night"] {
+  --card-radius:2px; --control-radius:2px; --badge-radius:2px;
+  --design-hero-rule:2px solid var(--primary);
+  --status-good:#93c5fd; --status-normal:#86efac; --status-bad:#fcd34d; --status-very-bad:#fca5a5;
+}
+.design-switcher { position:sticky; top:0; z-index:30; background:#171f30; color:#f8fafc; }
+html { scroll-padding-top:66px; }
+.design-switcher-inner { max-width:1240px; margin:auto; padding:10px 16px; display:flex; flex-wrap:wrap; gap:6px; }
+.design-switcher button {
+  min-height:34px; padding:5px 12px; border:1px solid #61697a; border-radius:999px;
+  background:#252e41; color:#e2e8f0; cursor:pointer; font-size:.875rem; font-weight:760;
+}
+.design-switcher button[aria-pressed="true"] { background:#fff; border-color:#fff; color:#111827; }
+.design-switcher button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+.site-header {
+  position:relative; max-width:1208px; margin:14px auto 0; border:1px solid var(--journal-rule);
+  border-radius:var(--card-radius); box-shadow:var(--design-shadow);
+}
+.header-inner { padding-inline:14px; }
+.dashboard { max-width:1240px; padding:12px 16px 48px; }
+.dashboard .card { border-radius:var(--card-radius); box-shadow:var(--design-shadow); }
+.dashboard .section-heading { align-items:center; border-color:var(--line); }
+.section-index {
+  margin:0 0 3px; color:var(--primary); font:800 .75rem/1.4 var(--journal-mono);
+  letter-spacing:.065em;
+}
+.dashboard .section-heading h2 { font-size:1.12rem; }
+.dashboard .hero {
+  padding:var(--journal-pad); gap:14px; border-top:var(--design-hero-rule);
+  align-items:start; grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.dashboard .hero-heading { grid-column:1/-1; margin:0; }
+.dashboard .hero-heading h1 { margin:0; font-size:clamp(1.5rem,3vw,2.15rem); }
+.hero-main { border:0; padding:0; }
+.hero-side { border:1px solid var(--line); background:var(--line); grid-template-rows:auto; }
+.hero-weather { padding:11px 12px; }
+.hero-weather strong { font-size:clamp(1rem,2vw,1.4rem); }
+.hero-pair strong { font-size:clamp(.875rem,1.5vw,1.1rem); }
+.hero-today { display:grid; justify-items:end; gap:3px; }
+.hero-today .updated { color:var(--muted); font-size:.75rem; }
+.hero-today-badge,.reference-badge {
+  display:inline-flex; align-items:center; gap:4px; padding:3px 7px;
+  border:1px solid var(--line); border-radius:var(--badge-radius);
+  background:var(--surface-2); color:var(--muted); font-size:.75rem; font-weight:750;
+}
+.dashboard .score-number { font-size:clamp(2.9rem,7vw,4.5rem); }
+.hero .today-best-time { justify-content:flex-start; border:0; padding:6px 0 0; }
+#todaySummary { margin:4px 0 8px; font-size:.8rem; }
+.dashboard :is(.duration-picker,.calculator-tabs) { margin:0; }
+.dashboard :is(.journal-segments,.field input,.score-context select,.icon-button,.location-button) { border-radius:var(--control-radius); }
+.dashboard .journal-segments button { border-radius:0; min-height:40px; }
+.dashboard :is(.grade-pill,.score-condition-badge,.hourly-score,.day-condition,.condition-legend span,.weather-summary-badge) { border-radius:var(--badge-radius); }
+.best-times-card .best-list { gap:6px; }
+.best-times-card .best-list li { border:1px solid var(--line); min-height:48px; border-radius:var(--control-radius); }
+.best-times-card .best-list li:first-child:not(.best-empty) { border-color:var(--journal-rule); background:var(--surface-2); }
+.best-times-note { padding-top:0; }
+#currentWeatherCard .data-source { margin-top:8px; }
+.sun-card #sunStatus { margin:10px 0 4px; }
+.dashboard .hourly-detail { padding:0; border:0; background:transparent; }
+.hourly-detail-heading { flex-wrap:wrap; gap:6px; }
+.hourly-detail-heading>strong { font-size:.8rem; color:var(--muted); }
+.dashboard .hourly-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.dashboard .hourly-metrics>span { padding:10px 11px; }
+.dashboard .hourly-metrics strong { font:800 1rem/1.35 var(--journal-mono); margin-top:3px; }
+.dashboard .hourly-metrics em { margin-top:4px; font-size:.72rem; }
+.hourly-chart-detail .chart { margin-top:6px; }
+.dashboard .split-results { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dashboard .weekly-grid {
+  grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px;
+  border:0; background:var(--surface); overflow:visible;
+}
+.dashboard .day-card {
+  min-width:0; padding:10px 4px; border:1px solid var(--line);
+  border-radius:var(--control-radius); font-size:.875rem;
+}
+.dashboard .day-card.active { border-color:var(--journal-rule); box-shadow:none; background:var(--surface-2); }
+.dashboard .day-card>strong { font-size:1.35rem; }
+.dashboard .day-condition { max-width:100%; width:auto; margin-inline:auto; white-space:normal; }
+.dashboard .week-score-track,.dashboard .workout-row .bar {
+  height:7px; box-shadow:inset 0 0 0 1px var(--line); background:var(--surface-2);
+}
+.dashboard .coach-insights { grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin:0 0 12px; }
+.dashboard .coach-insight { padding:10px; min-width:0; }
+.dashboard .coach-insight>strong { font-size:.875rem; overflow-wrap:break-word; }
+.dashboard .coach-insight>small { font-size:.75rem; }
+.dashboard .gear-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+:root:not([data-design="ink"]) :is(.condition-good,[data-condition="good"],[data-score-condition="good"]) { --status-ink:var(--status-good); }
+:root:not([data-design="ink"]) :is(.condition-normal,[data-condition="normal"],[data-score-condition="normal"]) { --status-ink:var(--status-normal); }
+:root:not([data-design="ink"]) :is(.condition-bad,[data-condition="bad"],[data-score-condition="bad"]) { --status-ink:var(--status-bad); }
+:root:not([data-design="ink"]) :is(.condition-very-bad,[data-condition="very-bad"],[data-score-condition="very-bad"]) { --status-ink:var(--status-very-bad); }
+:root .dashboard :is(.grade-pill,.score-condition-badge,.hourly-score,.day-condition,.condition-legend span,.weather-summary-badge) {
+  border-color:var(--status-ink,var(--line));
+  color:var(--status-ink,var(--text));
+  background:color-mix(in srgb,var(--status-ink,var(--surface)) 5%,var(--surface))!important;
+}
+.dashboard :is(.hourly-metrics strong,.metric em,.hourly-metrics em) { color:var(--status-ink,var(--text)); }
+.dashboard :is(.week-score-track i,.workout-row .bar i) { background:var(--status-ink,var(--text)); }
+.dashboard :is(.hero-main,.current-card) { --status-ink:initial; }
+:root:not([data-design="ink"]) .dashboard .hourly-metrics em {
+  position:absolute; width:1px; height:1px; overflow:hidden;
+  clip-path:inset(50%); white-space:nowrap;
+}
+@media(max-width:1240px) { .site-header { margin-inline:16px; } }
+@media(max-width:960px) {
+  .dashboard .hero,.summary-sections,.journal-tools,.training-guidance { grid-template-columns:minmax(0,1fr); }
+  .dashboard .hourly-metrics { grid-template-columns:minmax(0,1fr); }
+  .dashboard .weekly-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .dashboard .hourly-metrics>span { min-height:54px; }
+}
+@media(max-width:580px) {
+  html { scroll-padding-top:188px; }
+  .design-switcher-inner { flex-direction:column; align-items:flex-start; padding:8px 12px; gap:5px; }
+  .design-switcher button { min-height:29px; font-size:.8125rem; }
+  .site-header { margin-inline:12px; }
+  .header-inner { padding-inline:8px; }
+  .dashboard { padding-inline:12px; }
+  .dashboard .card { --journal-pad:16px; }
+  .dashboard .hero { gap:12px; }
+  .hero-today { justify-items:start; }
+  .dashboard .day-card { padding-inline:3px; }
+  .dashboard .day-condition { padding:2px 3px; font-size:.68rem; gap:3px; }
+  .dashboard .coach-insight { padding:8px; }
+  .dashboard .coach-insight>strong { word-break:normal; }
+}
+@media(max-height:540px) {
+  html { scroll-padding-top:8px; }
+  .design-switcher { position:relative; }
+}
