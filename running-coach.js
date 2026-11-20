@@ -1,6 +1,15 @@
 import { safe } from './utils.js';
 import { runningScoreDeductions, poorAir } from './running-score.js?v=39';
 
+export function temperatureFactorAdvice(c) {
+  const feels = safe(c.apparent_temperature, safe(c.temperature_2m));
+  if (feels !== null && feels < 5) {
+    return '보온·방풍 복장을 챙기고 충분히 몸을 푸세요. 찬 공기가 호흡을 자극하면 강도를 낮추세요.';
+  }
+  if (feels !== null && feels >= 25) return '더운 시간대에는 페이스를 낮춰 보세요.';
+  return '체감온도와 몸 상태를 확인한 뒤 강도를 조절하세요.';
+}
+
 export function coachMessage(c, best) {
   if(poorAir(c)&&!Number.isFinite(c.score))return '대기질이 좋지 않아 야외 고강도 러닝은 피하세요. 최신 기상 자료도 확인해 주세요.';
   if(!Number.isFinite(c.score))return '기상 자료가 부족하거나 오래되어 점수를 계산할 수 없습니다. 최신 날씨를 확인해 주세요.';

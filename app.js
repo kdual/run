@@ -4,7 +4,7 @@ import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from '.
 import { fetchAirQuality } from './air-quality.js?v=39';
 import { getStored, setStored, getCache, setCache } from './storage.js?v=19';
 import { currentConditions, dailyCoverage, hourlySlots, poorAir, dailyScore, findBestRunningTimes, includeCurrentObservation, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=39';
-import { coachMessage, environmentAlerts, gearAdvice, runNowMessage } from './running-coach.js?v=44';
+import { coachMessage, environmentAlerts, gearAdvice, runNowMessage, temperatureFactorAdvice } from './running-coach.js?v=45';
 import { fromPace, fromSpeed, parsePaceInput, renderPace } from './pace-calculator.js?v=30';
 import { renderHourlyChart } from './charts.js?v=39';
 import { solarTimes } from './solar-times.js?v=39';
@@ -47,8 +47,42 @@ document.addEventListener('click',event=>{
  if(designPicker.open&&!designPicker.contains(event.target))closeDesignPicker();
 });
 
-function setLoading(isLoading){$('refreshButton').disabled=isLoading;$('refreshButton').textContent=isLoading?'…':'↻';}
-function showError(message){$('errorBanner').textContent=message;$('errorBanner').hidden=!message;}
+function setLoading(isLoading){
+ const button=$('refreshButton');
+ button.disabled=isLoading;
+ button.setAttribute('aria-busy',String(isLoading));
+}
+function showError(message,label='일부 자료 갱신 실패'){
+ state.dataNotice=message?{message,label}:null;
+ renderAdvisory();
+}
+function renderAdvisory(){
+ const offline=!navigator.onLine;
+ const report=state.alertReport;
+ const notices=[];
+ const summary=[];
+ if(offline){
+   summary.push('오프라인');
+   notices.push(state.data?.weather?'오프라인입니다. 마지막 저장 데이터를 표시합니다.':'오프라인입니다. 표시할 저장 날씨가 없습니다.');
+ }else if(state.dataNotice){
+   summary.push(state.dataNotice.label);
+   notices.push(state.dataNotice.message);
+ }
+ const alerts=report?.alerts||[];
+ if(alerts.length){
+   summary.push('미세먼지 경보 '+alerts.length+'건');
+   notices.push(...alerts.map(a=>['에어코리아',a.pollutant||'미세먼지',a.level||'경보','·',a.region||'해당 권역'].join(' ')));
+ }else{
+   const label=offline?'미세먼지 경보 미확인':state.alertsPending?'미세먼지 경보 확인 중':report?'미세먼지 경보 없음':'미세먼지 경보 미확인';
+   summary.push(label);
+   notices.push(label==='미세먼지 경보 미확인'?'미세먼지 경보를 확인할 수 없어 발령 여부를 알 수 없습니다.':label);
+ }
+ const label=summary.join(' · ');
+ if($('advisorySummary').textContent!==label)$('advisorySummary').textContent=label;
+ const detail=$('advisoryDetail');
+ const text=notices.join('\n');
+ if(detail.textContent!==text)detail.textContent=text;
+}
 function nowSeoul(){return new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());}
 function currentSeoulDate(date=new Date()){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);}
 function addCalendarDays(date,days){const [year,month,day]=date.split('-').map(Number);return new Date(Date.UTC(year,month-1,day+days)).toISOString().slice(0,10);}
@@ -57,9 +91,21 @@ updateClock();setInterval(updateClock,1000);
 
 async function loadData(force=false){
   if(!force&&state.loading)return;
-  state.controller?.abort();const controller=new AbortController();state.controller=controller;state.loading=true;setLoading(true);showError('');
+  state.controller?.abort();const controller=new AbortController();state.controller=controller;state.loading=true;
+  state.alertReport=null;state.alertsPending=navigator.onLine;
+  setLoading(true);showError('');
   const loc={...state.location};
   try{
+    if(!navigator.onLine){
+      if(!state.data?.weather){
+        const cached=getCache(loc);
+        if(cached?.payload?.weather){
+          state.data={...cached.payload,airPending:false,fromCache:true,savedAt:cached.savedAt};
+          render();
+        }
+      }
+      return;
+    }
     if(!loc.areaNo||!loc.region1){
       let timeout;
       try{Object.assign(loc,await Promise.race([ensureAreaCode(loc),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('지역 확인 시간 초과')),8000);})]));}
@@ -73,7 +119,12 @@ async function loadData(force=false){
     const apply=()=>{if(!controller.signal.aborted&&payload.weather){state.data={...payload};render();}};
     const publicRequest=path=>requestJson(`${APP_CONFIG.apiBaseUrl}${path}`,controller.signal,{retries:0}).then(r=>r.data).catch(()=>null);
     const forecastJob=publicRequest(`/air/forecast?sidoName=${encodeURIComponent(loc.region1||'서울')}`).then(data=>{payload.forecast=data||payload.forecast;apply();});
-    const alertsJob=publicRequest(`/air/alerts?sidoName=${encodeURIComponent(loc.region1||'서울')}&districtName=${encodeURIComponent(loc.region2||'')}`).then(data=>{payload.officialAlerts=data||null;apply();});
+    const alertsJob=publicRequest(`/air/alerts?sidoName=${encodeURIComponent(loc.region1||'서울')}&districtName=${encodeURIComponent(loc.region2||'')}`).then(data=>{
+      if(controller.signal.aborted)return;
+      state.alertReport=data;
+      state.alertsPending=false;
+      renderAdvisory();
+    });
     const airJob=fetchAirQuality(loc,controller.signal).then(data=>{payload.air=data;payload.airStale=false;}).catch(error=>{if(error.name!=='AbortError'){payload.airError=true;payload.airFailureReason=requestFailureLabel(error);payload.airStale=Boolean(payload.air);}}).finally(()=>{payload.airPending=false;apply();});
     let weatherError;
     const weatherJob=fetchWeather(loc,controller.signal).then(weather=>{payload.weather=weather;payload.savedAt=Date.now();payload.fromCache=false;apply();}).catch(error=>{weatherError=error;});
@@ -86,8 +137,8 @@ async function loadData(force=false){
     if(payload.airError)warnings.push(`대기질 최신 조회 실패 (${payload.airFailureReason||'원인 미확인'}). ${payload.airStale?'저장된 측정값을 표시하며, 3시간이 지나면 현재 점수에서 제외합니다.':'대기질 없이 계산하며 새로고침으로 다시 시도할 수 있습니다.'}`);
     if(payload.weather.life_indices?.uv!=='ok'||payload.weather.life_indices?.air_stagnation!=='ok')warnings.push('일부 생활기상지수를 조회하지 못했습니다.');
     showError(warnings.join(' '));
-  }catch(error){if(error.name!=='AbortError')showError(`날씨를 가져오지 못했습니다. 다시 시도해 주세요. (${error.message})`);}
-  finally{if(state.controller===controller){state.loading=false;state.lastAttempt=Date.now();setLoading(false);}}
+  }catch(error){if(error.name!=='AbortError'&&!controller.signal.aborted)showError(`날씨를 가져오지 못했습니다. 다시 시도해 주세요. (${error.message})`,'날씨 조회 실패');}
+  finally{if(state.controller===controller){state.loading=false;state.alertsPending=false;state.lastAttempt=Date.now();setLoading(false);renderAdvisory();}}
 }
 
 function render(){
@@ -101,7 +152,6 @@ function render(){
   const airState=state.data.airError?'대기질 최신 조회 실패 · '+(Number.isFinite(current.pm2_5)||Number.isFinite(current.pm10)||Number.isFinite(current.air_quality_index)?'저장된 대기질 사용 중 · ':'대기질 미반영 · '):state.data.airPending?'대기질 갱신 중 · ':'';
   $('scoreDataStatus').textContent=airState+(current.score===null?'계산 불가 · '+current.missing.join(' · '):current.missing.length?'일부 정보 미반영: '+current.missing.join(' · '):'확인된 자료로 계산한 추정 점수입니다.');
   $('observationSource').textContent=`기상청 ${timeOnly(current.observation_time)} 관측${livingReady?'·생활기상지수':''}${airSource}`;$('airSourceDetail').textContent=station?`PM 실측: ${station} · ${measured||'측정 시각 없음'}${Number.isFinite(air?.station_distance_km)?` · 약 ${air.station_distance_km}km`:''}. 3시간이 지나면 현재 점수에서 제외합니다.`:'PM 실측 측정소 또는 값이 확인되지 않았습니다.';$('forecastSourceDetail').textContent=state.data.forecast?.daily?.length?`미래 대기질: 에어코리아 ${state.data.forecast.sido_name} 권역 일일 예보 등급 (시간별 농도 아님)`:'미래 대기질: 권역 예보 없음 · 점수에 대기질 반영 안 함';
-  $('offlineBanner').hidden=navigator.onLine;
 }
 
 function renderHero(current,best){
@@ -198,11 +248,11 @@ function renderCoach(c,best){
  const timing=best&&difference===null?'자료 확인 후 결정':best?(difference>=5?`${timeOnly(best.start)} 이후 검토`:difference<=-5?'지금 출발도 고려':'시간 차이 크지 않음'):'남은 예보 없음';
  const timingDetail=best&&difference===null?'최신 현재 점수가 없어 추천 구간과 비교할 수 없습니다.':best?(difference>=5?`선택한 ${state.duration}분 구간의 예보 점수가 현재보다 ${difference}점 높습니다.`:difference<=-5?`현재 점수가 추천 구간보다 ${Math.abs(difference)}점 높습니다.`:`현재와 추천 구간의 예상 점수 차이는 ${Math.abs(difference)}점입니다.`):'남은 러닝 가능 시간대의 예보를 확인할 수 없습니다.';
  const reasons=Object.entries(c.deductions||runningScoreDeductions(c)).sort((a,b)=>b[1]-a[1]);
- const primary=reasons[0],factorInfo={temperature:['체감온도','더운 시간대에는 페이스를 낮춰 보세요.'],sunExposure:['햇빛 열부담(추정)','그늘이 적은 코스라면 페이스를 낮추거나 해가 약한 시간대를 선택하세요.'],dewPoint:['이슬점','후반부 체감 부담을 살펴보세요.'],humidity:['습도','땀 배출이 불편한지 살펴보세요.'],rain:['비','노면 상태를 확인하세요.'],wind:['바람','바람이 강한 구간을 확인하세요.'],airQuality:['대기질','측정된 미세먼지 수치를 다시 확인하세요.'],uv:['자외선','노출이 적은 시간대를 고려하세요.']};
+ const primary=reasons[0],factorInfo={temperature:['체감온도',temperatureFactorAdvice(c)],sunExposure:['햇빛 열부담(추정)','그늘이 적은 코스라면 페이스를 낮추거나 해가 약한 시간대를 선택하세요.'],dewPoint:['이슬점','후반부 체감 부담을 살펴보세요.'],humidity:['습도','땀 배출이 불편한지 살펴보세요.'],rain:['비','노면 상태를 확인하세요.'],wind:['바람','바람이 강한 구간을 확인하세요.'],airQuality:['대기질','측정된 미세먼지 수치를 다시 확인하세요.'],uv:['자외선','노출이 적은 시간대를 고려하세요.']};
  const factor=primary&&primary[1]>=1?factorInfo[primary[0]]:null;
  const insights=[['권장 강도',intensity,intensityDetail],['지금 또는 나중',timing,timingDetail],['가장 큰 환경 변수',factor?`${factor[0]} −${Math.round(primary[1])}점`:'큰 감점 없음',factor?factor[1]:'점수에 큰 영향을 준 날씨 요인이 없습니다.']];
  $('coachInsights').innerHTML=insights.map(([label,value,detail])=>`<div class="coach-insight"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small class="coach-insight-detail">${escapeHtml(detail)}</small></div>`).join('');
- const official=state.data?.officialAlerts?.alerts||[];$('officialAlerts').innerHTML=official.length?official.map(a=>`<span class="alert-chip">에어코리아 ${escapeHtml(a.pollutant||'미세먼지')} ${escapeHtml(a.level||'경보')} · ${escapeHtml(a.region||'해당 권역')}</span>`).join(''):state.data?.officialAlerts?'<span class="muted">조회된 미세먼지 경보 없음 (에어코리아)</span>':'<span class="muted">미세먼지 경보 조회 불가 · 발령 여부 미확인</span>';$('alerts').innerHTML=environmentAlerts(c).map(a=>`<span class="alert-chip">${escapeHtml(a)}</span>`).join('');
+ $('alerts').innerHTML=environmentAlerts(c).map(a=>`<span class="alert-chip">${escapeHtml(a)}</span>`).join('');
 }
 
 function renderWeekly(w,hourly){
@@ -214,6 +264,7 @@ function renderWeekly(w,hourly){
    .sort((a,b)=>a.date.localeCompare(b.date))
    .slice(0,4);
  const cards=$('weeklyCards');
+ $('weeklyIndex').textContent=forecast.length?'07 / '+forecast.length+'-DAY':'07 / FORECAST';
  if(!forecast.length){
    cards.replaceChildren();
    $('selectedDayDetail').innerHTML='<p class="muted">표시할 수 있는 러닝 예보가 없습니다.</p>';
@@ -311,9 +362,10 @@ for (const [index, tab] of modeTabs.entries()) {
     modeTabs[next].click();
   });
 }
-addEventListener('online',()=>{$('offlineBanner').hidden=true;loadData();});addEventListener('offline',()=>{$('offlineBanner').hidden=false;});
+addEventListener('online',()=>loadData(true));
+addEventListener('offline',()=>loadData(true));
 
 calculatorTemplate();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=54',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=55',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
