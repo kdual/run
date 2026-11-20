@@ -166,6 +166,19 @@ html { scroll-padding-top:12px; }
 .dashboard .coach-insight>strong { font-size:.875rem; overflow-wrap:break-word; }
 .dashboard .coach-insight>small { font-size:.75rem; }
 .journal-tools,.training-guidance { align-items:start; }
+@media (min-width:961px) {
+  .journal-tools:has(.hourly-chart-detail[open]) { align-items:stretch; }
+  .journal-tools:has(.hourly-chart-detail[open]) #pace {
+    display:flex; flex-direction:column;
+  }
+  .journal-tools:has(.hourly-chart-detail[open]) #pace .split-results:not(:empty) {
+    flex:1; grid-auto-rows:minmax(min-content,1fr);
+  }
+  .journal-tools:has(.hourly-chart-detail[open]) #pace .split-item {
+    display:grid; align-content:center;
+  }
+  .journal-tools:has(.hourly-chart-detail[open]) #calculatorError:empty { display:none; }
+}
 .coach-section .coach-copy { margin:0; padding:9px 11px; }
 .dashboard .coach-section .alert-list { margin-top:8px; }
 .dashboard .coach-section .alert-list:empty { display:none; }
