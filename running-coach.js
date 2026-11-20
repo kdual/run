@@ -1,5 +1,5 @@
 import { safe } from './utils.js';
-import { runningScoreDeductions, poorAir } from './running-score.js?v=39';
+import { runningScoreDeductions, poorAir } from './running-score.js?v=40';
 
 export function temperatureFactorAdvice(c) {
   const feels = safe(c.apparent_temperature, safe(c.temperature_2m));

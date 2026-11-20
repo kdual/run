@@ -106,6 +106,18 @@ html { scroll-padding-top:12px; }
 .hero-weather { padding:11px 12px; }
 .hero-weather strong { font-size:clamp(1rem,2vw,1.4rem); }
 .hero-pair strong { font-size:clamp(.875rem,1.5vw,1.1rem); }
+.hero-aside { min-width:0; display:grid; gap:12px; }
+.departure-comparison { border:1px solid var(--line); }
+.departure-comparison h2 { margin:0; padding:8px 12px; font-size:.95rem; }
+.departure-comparison table { width:100%; white-space:normal; }
+.departure-comparison :is(th,td) { padding:5px 10px; font-size:.8rem; }
+.departure-comparison :is(thead,td:last-child) { background:var(--surface-2); }
+.departure-comparison tbody th { color:var(--muted); }
+.departure-comparison thead th { color:var(--text); }
+.departure-comparison :is(td strong,td:last-child) { font-weight:750; }
+#departureBestTime { font-weight:700; color:var(--muted); white-space:nowrap; }
+#departureScoreDelta { margin-inline-start:6px; color:var(--muted); font-size:.72rem; white-space:nowrap; }
+#departureComparisonNote { margin:0; padding:6px 10px; color:var(--muted); font-size:.72rem; }
 .hero-updated { color:var(--muted); font-size:.75rem; }
 .reference-badge {
   display:inline-flex; align-items:center; gap:4px; padding:3px 7px;

@@ -3,8 +3,8 @@ import { APP_CONFIG } from './running-score-config.js?v=14';
 import { ensureAreaCode, fetchWeather, reverseGeocode, searchLocations } from './weather.js?v=41';
 import { fetchAirQuality } from './air-quality.js?v=39';
 import { getStored, setStored, getCache, setCache } from './storage.js?v=19';
-import { currentConditions, dailyCoverage, hourlySlots, poorAir, dailyScore, findBestRunningTimes, includeCurrentObservation, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=39';
-import { coachMessage, environmentAlerts, gearAdvice, runNowMessage, temperatureFactorAdvice } from './running-coach.js?v=45';
+import { currentConditions, dailyCoverage, hourlySlots, poorAir, dailyScore, findBestRunningTimes, includeCurrentObservation, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=40';
+import { coachMessage, environmentAlerts, gearAdvice, runNowMessage, temperatureFactorAdvice } from './running-coach.js?v=46';
 import { fromPace, fromSpeed, parsePaceInput, renderPace } from './pace-calculator.js?v=30';
 import { renderHourlyChart } from './charts.js?v=39';
 import { solarTimes } from './solar-times.js?v=39';
@@ -137,7 +137,12 @@ async function loadData(force=false){
     if(payload.airError)warnings.push(`대기질 최신 조회 실패 (${payload.airFailureReason||'원인 미확인'}). ${payload.airStale?'저장된 측정값을 표시하며, 3시간이 지나면 현재 점수에서 제외합니다.':'대기질 없이 계산하며 새로고침으로 다시 시도할 수 있습니다.'}`);
     if(payload.weather.life_indices?.uv!=='ok'||payload.weather.life_indices?.air_stagnation!=='ok')warnings.push('일부 생활기상지수를 조회하지 못했습니다.');
     showError(warnings.join(' '));
-  }catch(error){if(error.name!=='AbortError'&&!controller.signal.aborted)showError(`날씨를 가져오지 못했습니다. 다시 시도해 주세요. (${error.message})`,'날씨 조회 실패');}
+  }catch(error){
+    if(error.name!=='AbortError'&&!controller.signal.aborted){
+      showError(`날씨를 가져오지 못했습니다. 다시 시도해 주세요. (${error.message})`,'날씨 조회 실패');
+      if(!state.data?.weather)$('departureComparisonNote').textContent='날씨를 불러오지 못해 비교할 수 없습니다.';
+    }
+  }
   finally{if(state.controller===controller){state.loading=false;state.alertsPending=false;state.lastAttempt=Date.now();setLoading(false);renderAdvisory();}}
 }
 
@@ -170,6 +175,55 @@ function renderHero(current,best){
  $('heroWind').textContent=formatValue(current.wind_speed_10m,' km/h',1);
  $('heroUv').textContent=Number.isFinite(current.uv_index)?'UV '+round(current.uv_index,1):'UV 정보 없음';
  $('todayBestTime').textContent=best?timeOnly(best.start)+'–'+endLabel(best):'남은 추천 시간 없음';
+ renderDepartureComparison(current,best);
+}
+function mountDepartureComparison(){
+  const weather=document.querySelector('.hero-side');
+  const aside=document.createElement('div');
+  aside.className='hero-aside';
+  weather.before(aside);
+  aside.append(weather);
+  aside.insertAdjacentHTML('beforeend', `
+    <section class="departure-comparison" aria-labelledby="departureComparisonTitle">
+      <h2 id="departureComparisonTitle">지금 vs 추천 시간</h2>
+      <table aria-labelledby="departureComparisonTitle" aria-describedby="departureComparisonNote">
+        <thead><tr><td></td><th scope="col">지금</th><th scope="col">추천 <span id="departureBestTime"></span></th></tr></thead>
+        <tbody>
+          <tr><th scope="row">러닝 점수</th><td id="departureCurrentScore">—</td><td><strong id="departureBestScore">—</strong><span id="departureScoreDelta" hidden></span></td></tr>
+          <tr><th scope="row">체감온도</th><td id="departureCurrentFeels">—</td><td id="departureBestFeels">—</td></tr>
+          <tr><th scope="row">바람</th><td id="departureCurrentWind">—</td><td id="departureBestWind">—</td></tr>
+        </tbody>
+      </table>
+      <p id="departureComparisonNote">러닝 조건을 확인하는 중입니다.</p>
+    </section>
+  `);
+}
+function renderDepartureComparison(current,best){
+  const recommended=best?.averageWeather;
+  const values=[
+    ['departureCurrentScore',current?.score,'점',0],
+    ['departureBestScore',best?.score,'점',0],
+    ['departureCurrentFeels',current?.apparent_temperature,'°C',1],
+    ['departureBestFeels',recommended?.apparent_temperature,'°C',1],
+    ['departureCurrentWind',current?.wind_speed_10m,' km/h',1],
+    ['departureBestWind',recommended?.wind_speed_10m,' km/h',1]
+  ];
+  for(const [id,value,unit,digits] of values){
+    $(id).textContent=Number.isFinite(value)?formatValue(value,unit,digits):'—';
+  }
+  $('departureBestTime').textContent=best?timeOnly(best.start)+'–'+endLabel(best):'';
+  const delta=$('departureScoreDelta');
+  const comparable=Number.isFinite(current?.score)&&Number.isFinite(best?.score);
+  delta.hidden=!comparable;
+  if(comparable){
+    const difference=best.score-current.score;
+    delta.textContent=difference===0?'동일':(difference>0?'+':'−')+Math.abs(difference)+'점';
+  }else{
+    delta.textContent='';
+  }
+  $('departureComparisonNote').textContent=best
+    ?`추천 열은 ${best.durationMinutes}분 구간 평균입니다.`
+    :current?'오늘 남은 추천 시간대가 없습니다.':'러닝 조건을 확인하는 중입니다.';
 }
 function endLabel(block){const d=new Date(Date.parse(`${block.start}:00+09:00`)+block.durationMinutes*60000);return String((d.getUTCHours()+9)%24).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');}
 function renderBest(best){$('bestTimes').innerHTML=best.length?best.map((b,i)=>`<li><span class="rank-index" aria-hidden="true">${String(i+1).padStart(2,'0')}</span><span><strong>${timeOnly(b.start)}–${endLabel(b)}</strong><small>${b.durationMinutes}분 추천 구간${b.durationMinutes===30?' · 시간별 예보 기반':''}</small></span><span class="point">${b.score}점</span></li>`).join(''):'<li class="best-empty"><span>오늘 남은 추천 시간대가 없습니다.</span></li>';}
@@ -334,12 +388,14 @@ async function chooseLocation(loc){
   state.controller?.abort();state.data=null;state.computed=null;state.location=loc;state.selectedWeekDate=null;state.hourlyDay=0;$('currentScore').textContent='--';$('currentGrade').textContent='조회 중';$('currentScoreFactors').innerHTML='';$('scoreDataStatus').textContent='선택한 지역의 자료를 조회하고 있습니다.';$('weatherMetrics').replaceChildren();$('weatherDetails').replaceChildren();$('currentWeatherCondition').textContent='조회 중';$('observationSource').textContent=loc.name+' 조회 중';$('bestTimes').innerHTML='';$('hourlyChart').innerHTML='';$('hourlyDetail').innerHTML='';
   $('locationConfirm').disabled=true;$('locationError').textContent='행정구역과 가까운 대기 측정소를 확인하고 있습니다…';
   for(const id of ['heroTemp','heroFeels','heroHumidity','heroDew','heroWind','heroUv'])$(id).textContent='--';
+  renderDepartureComparison();
   $('todayBestTime').textContent='조회 중';$('updatedAt').textContent='조회 중';
   state.selectedLocation=null;setStored('location',state.location);$('locationConfirm').hidden=true;$('locationConfirm').disabled=false;$('locationDialog').close();loadData(true);
 }
 function locate(){if(!navigator.geolocation){$('locationError').textContent='이 브라우저는 위치 기능을 지원하지 않습니다.';return;}$('locationError').textContent='현재 위치와 주소를 확인하고 있습니다…';navigator.geolocation.getCurrentPosition(async pos=>{const latitude=round(pos.coords.latitude,6),longitude=round(pos.coords.longitude,6);try{chooseLocation(await reverseGeocode(latitude,longitude));}catch{chooseLocation({name:'현재 위치',address:'현재 위치',region1:'',region2:'',latitude,longitude});}},()=>{$('locationError').textContent='위치 권한이 거부되었거나 위치를 확인할 수 없습니다. 지역 검색을 이용해 주세요.';},{timeout:15000,maximumAge:300000,enableHighAccuracy:true});}
 async function search(){const q=$('locationSearch').value.trim();if(q.length<2){$('locationError').textContent='주소나 장소명을 두 글자 이상 입력해 주세요.';return;}try{$('locationError').textContent='카카오에서 검색 중…';state.selectedLocation=null;$('locationConfirm').hidden=true;const results=await searchLocations(q);$('locationError').textContent=results.length?'검색 결과를 선택하면 지도에서 위치를 확인할 수 있습니다.':'검색 결과가 없습니다.';$('locationResults').innerHTML=results.map((r,i)=>`<button type="button" class="location-result" data-index="${i}" role="option"><strong>${escapeHtml(r.name)}</strong><small>${escapeHtml([r.category,r.roadAddress||r.address].filter(Boolean).join(' · '))}</small></button>`).join('');$('locationResults').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{const r=results[Number(b.dataset.index)];previewLocation({name:r.name,address:r.address,roadAddress:r.roadAddress,region1:r.region1,region2:r.region2,region3:r.region3,areaNo:r.areaNo,latitude:r.latitude,longitude:r.longitude},b);}));if(results[0])previewLocation(results[0],$('locationResults').querySelector('button'));}catch(e){$('locationError').textContent=e.message;}}
 
+mountDepartureComparison();
 $('locationButton').addEventListener('click',()=>{$('locationDialog').showModal();setTimeout(()=>{initLocationMap();state.map?.relayout();showLocationOnMap(state.location);$('locationSearch').focus();},0);});$('locationConfirm').addEventListener('click',()=>{if(state.selectedLocation)chooseLocation(state.selectedLocation);});$('useMyLocation').addEventListener('click',locate);$('searchLocation').addEventListener('click',search);$('locationSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();search();}});$('refreshButton').addEventListener('click',()=>loadData(true));$('themeButton').addEventListener('click',()=>selectDesign(document.documentElement.dataset.theme==='dark'?lightDesign:'night'));document.querySelectorAll('[data-hourly-day]').forEach((b,i)=>b.addEventListener('click',()=>{if(state.computed){state.hourlyDay=i;renderHourly();}}));$('hourlyNextDay').addEventListener('click',()=>{state.hourlyDay=1;renderHourly();});document.querySelectorAll('[data-duration]').forEach(b=>b.addEventListener('click',()=>{state.duration=Number(b.dataset.duration);setStored('runDuration',state.duration);document.querySelectorAll('[data-duration]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b));});if(state.data)render();}));document.querySelectorAll('[data-duration]').forEach(b=>{const active=Number(b.dataset.duration)===state.duration;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});const modeTabs=[...document.querySelectorAll('[data-calc-mode]')];
 for (const [index, tab] of modeTabs.entries()) {
   tab.addEventListener('click',()=>{
@@ -368,4 +424,4 @@ addEventListener('offline',()=>loadData(true));
 calculatorTemplate();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=55',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=57',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});

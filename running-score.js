@@ -143,13 +143,29 @@ export function findBestRunningTimes(rows, count = 3, durationMinutes = 120, now
   const soon=Math.ceil(nowStamp/(5*60000))*5*60000;
   if(eligible.some(r=>stamp(r.time)<=soon&&soon<stamp(r.time)+3600000))candidates.add(soon);
   const blocks=[];
+  const weatherMetrics=['apparent_temperature','wind_speed_10m'];
   for(const start of candidates){
     if(start<nowStamp)continue;
     const end=start+durationMinutes*60000;
     let covered=0,weighted=0;
-    for(const r of eligible){const overlap=Math.max(0,Math.min(end,stamp(r.time)+3600000)-Math.max(start,stamp(r.time)));covered+=overlap;weighted+=overlap*r.score;}
+    const weather=weatherMetrics.map(key=>({key,covered:0,weighted:0}));
+    for(const row of eligible){
+      const overlap=Math.min(end,stamp(row.time)+3600000)-Math.max(start,stamp(row.time));
+      if(overlap<=0)continue;
+      covered+=overlap;
+      weighted+=overlap*row.score;
+      for(const metric of weather){
+        const value=row[metric.key];
+        if(!Number.isFinite(value))continue;
+        metric.covered+=overlap;
+        metric.weighted+=overlap*value;
+      }
+    }
     if(covered!==end-start)continue;
-    blocks.push({start:kst(new Date(start)),end:kst(new Date(end)),score:Math.round(weighted/covered),durationMinutes,duration:durationMinutes/60});
+    const averageWeather=Object.fromEntries(weather.map(metric=>[
+      metric.key,metric.covered===covered?metric.weighted/covered:null
+    ]));
+    blocks.push({start:kst(new Date(start)),end:kst(new Date(end)),score:Math.round(weighted/covered),durationMinutes,duration:durationMinutes/60,averageWeather});
   }
   blocks.sort((a,b)=>b.score-a.score||a.start.localeCompare(b.start));
   const chosen=[];

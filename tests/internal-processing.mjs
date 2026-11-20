@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {findBestRunningTimes} from '../running-score.js';
 const source=fs.readFileSync(new URL('../cloudflare-worker.js',import.meta.url),'utf8');
 const gov=await import('data:text/javascript;base64,'+Buffer.from(source+'\nexport {fetchAirStations, fetchJson, cachedPublicRoute};').toString('base64'));
 let calls=0, active=0, peak=0;
@@ -36,4 +37,17 @@ mock('ERROR','OK');assert.equal((await weather.namespace.searchLocations('test')
 mock('OK','ERROR');assert.equal((await weather.namespace.searchLocations('test'))[0].name,'야탑');
 mock('ERROR','ERROR');await assert.rejects(weather.namespace.searchLocations('test'),/검색에 실패/);
 mock('ZERO','ZERO');assert.equal((await weather.namespace.searchLocations('test')).length,0);
-console.log('PASS: parallel station lookup, 24h metadata and in-flight reuse, cross-district reuse, bounded fetch/body, no retry on 403, 60s success cache, no failure cache, measured timestamp, partial location search');
+const comparisonRows = [
+  {time:'2026-11-20T17:00',score:100,apparent_temperature:-3,wind_speed_10m:0},
+  {time:'2026-11-20T18:00',score:60,apparent_temperature:3}
+];
+const departure = new Date('2026-11-20T17:20:00+09:00');
+const [hourRun] = findBestRunningTimes(comparisonRows,1,60,departure);
+assert.equal(hourRun.start,'2026-11-20T17:20');
+assert.equal(hourRun.end,'2026-11-20T18:20');
+assert.equal(hourRun.score,87);
+assert.deepEqual(hourRun.averageWeather,{apparent_temperature:-1,wind_speed_10m:null});
+const [halfHourRun] = findBestRunningTimes(comparisonRows,1,30,departure);
+assert.deepEqual(halfHourRun.averageWeather,{apparent_temperature:-3,wind_speed_10m:0});
+assert.equal(findBestRunningTimes(comparisonRows,1,60,new Date('2026-11-20T19:00:00+09:00')).length,0);
+console.log('PASS: parallel station lookup, 24h metadata and in-flight reuse, cross-district reuse, bounded fetch/body, no retry on 403, 60s success cache, no failure cache, measured timestamp, partial location search, duration-weighted comparison and missing weather');
