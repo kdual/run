@@ -6,14 +6,20 @@ import { getStored, setStored, getCache, setCache } from './storage.js?v=19';
 import { currentConditions, dailyCoverage, hourlySlots, poorAir, dailyScore, findBestRunningTimes, includeCurrentObservation, mergeHourly, rowsForDate, runnableRows, runningScoreDeductions, workoutScores } from './running-score.js?v=40';
 import { coachMessage, environmentAlerts, gearAdvice, runNowMessage, temperatureFactorAdvice } from './running-coach.js?v=46';
 import { fromPace, fromSpeed, parsePaceInput, renderPace } from './pace-calculator.js?v=30';
-import { renderHourlyChart } from './charts.js?v=39';
+import { renderHourlyChart } from './charts.js?v=40';
 import { solarTimes } from './solar-times.js?v=39';
 import { dateOnly, escapeHtml, formatValue, monthDay, round, secondsToClock, timeOnly, weatherIcon, weekday } from './utils.js?v=44';
 
 const $ = id => document.getElementById(id);
 const state = { duration:getStored('runDuration',60), location:getStored('location',APP_CONFIG.defaultLocation), selectedLocation:null, data:null, hourlyDay:0, hourlyKey:null, dateKey:currentSeoulDate(), calcMode:'pace',calcInputs:{pace:'500',speed:'12'}, controller:null, map:null, marker:null };
 
-function setTheme(theme){document.documentElement.dataset.theme=theme;setStored('theme',theme);$('themeButton').setAttribute('aria-label',theme==='dark'?'라이트 모드 전환':'다크 모드 전환');}
+function setTheme(theme){
+ document.documentElement.dataset.theme=theme;
+ setStored('theme',theme);
+ const button=$('themeButton');
+ button.setAttribute('aria-label',theme==='dark'?'라이트 모드 전환':'다크 모드 전환');
+ button.textContent=theme==='dark'?'◐ 라이트':'◐ 다크';
+}
 const designButtons=[...document.querySelectorAll('[data-design]')];
 const lightDesigns=new Set(['swiss','paper','modern','ink']);
 let lightDesign=getStored('runwiseLightDesign','swiss');
@@ -164,6 +170,9 @@ function renderHero(current,best){
  $('top').dataset.condition=condition.key;
  $('currentScore').classList.remove('skeleton-text');
  $('currentScore').textContent=current.score??'--';
+ $('currentScoreScale').hidden=!Number.isFinite(current.score);
+ $('currentScoreScale').dataset.condition=condition.key;
+ $('currentScoreMeter').value=current.score??0;
  $('currentGrade').textContent=condition.label;
  $('currentGrade').className='grade-pill condition-'+condition.key;
  $('runNowMessage').textContent=runNowMessage(current,best);
@@ -185,9 +194,9 @@ function mountDepartureComparison(){
   aside.append(weather);
   aside.insertAdjacentHTML('beforeend', `
     <section class="departure-comparison" aria-labelledby="departureComparisonTitle">
-      <h2 id="departureComparisonTitle">지금 vs 추천 시간</h2>
+      <h2 id="departureComparisonTitle">지금 vs 추천 시간 비교</h2>
       <table aria-labelledby="departureComparisonTitle" aria-describedby="departureComparisonNote">
-        <thead><tr><td></td><th scope="col">지금</th><th scope="col">추천 <span id="departureBestTime"></span></th></tr></thead>
+        <thead><tr><th scope="col">항목</th><th scope="col">지금</th><th scope="col">추천 <span id="departureBestTime"></span></th></tr></thead>
         <tbody>
           <tr><th scope="row">러닝 점수</th><td id="departureCurrentScore">—</td><td><strong id="departureBestScore">—</strong><span id="departureScoreDelta" hidden></span></td></tr>
           <tr><th scope="row">체감온도</th><td id="departureCurrentFeels">—</td><td id="departureBestFeels">—</td></tr>
@@ -259,6 +268,16 @@ function renderSunTimes(){
 }
 function renderSunStatus(){
   const sun=state.todaySun,now=currentSeoulMinute();
+  const timeline=$('daylightTimeline');
+  const points=[sun?.astronomical_dawn,sun?.sunrise,sun?.sunset,sun?.astronomical_dusk,now];
+  timeline.hidden=!points.every(Boolean);
+  if(!timeline.hidden){
+    const positions=['--dawn','--sunrise','--sunset','--dusk','--now'];
+    points.forEach((time,index)=>{
+      const [hours,minutes]=timeOnly(time).split(':').map(Number);
+      timeline.style.setProperty(positions[index],`${(hours*60+minutes)/14.4}%`);
+    });
+  }
   if(!sun){$('sunStatus').textContent='일출·일몰 시각을 계산할 수 없습니다.';$('daylightBadge').textContent='정보 없음';return;}
   const phase=now<(sun.astronomical_dawn||sun.sunrise)||now>=(sun.astronomical_dusk||sun.sunset)
     ?'완전한 어둠':now<sun.sunrise?'일출 전 박명':now<sun.sunset?'낮':'일몰 후 박명';
@@ -279,7 +298,7 @@ function renderSunStatus(){
 
 function currentSeoulMinute(){return new Date().toLocaleString('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).replace(' ','T');}
 function currentSeoulHour(){return currentSeoulMinute().slice(0,13)+':00';}
-function renderHourly(){$('hourlySelection').textContent='';const compact=matchMedia('(max-width:700px)').matches;const allRows=state.hourlyDay===0?state.computed.todayRows:state.computed.tomorrowRows;const nowHour=currentSeoulHour();state.hourlyKey=nowHour;const rows=compact&&state.hourlyDay===0&&dateOnly(nowHour)===state.computed.today?allRows.filter(r=>r.time>=nowHour):allRows;renderHourlyChart($('hourlyChart'),rows,renderHourlyDetail,{compact});$('hourlyTextAlternative').textContent=rows.map(r=>`${timeOnly(r.time)} ${r.score??'--'}점${r.observed?` 최신 관측(${timeOnly(r.observation_time)}) 반영`:''}`).join(', ');if(!rows.some(r=>Number.isFinite(r.score))) $('hourlyDetail').innerHTML=`<p class="muted">${state.hourlyDay===0?'오늘 남은 시간대':'선택한 날짜'}의 기상청 예보가 없습니다.</p>`;const observed=state.hourlyDay===0&&rows.find(r=>r.observed&&r.time===nowHour);$('hourlyDataNote').textContent=observed?`현재 시간대는 ${timeOnly(observed.observation_time)} 기상청 관측값과 최신 대기질을 반영합니다. 이후 시간대는 예보 점수입니다.`:'시간대별 점수는 기상청 예보를 바탕으로 계산합니다.';const nextButton=$('hourlyNextDay');nextButton.hidden=!(compact&&state.hourlyDay===0&&rows.length<=3);document.querySelectorAll('[data-hourly-day]').forEach((b,i)=>{b.classList.toggle('active',i===state.hourlyDay);b.setAttribute('aria-pressed',String(i===state.hourlyDay));});}
+function renderHourly(){$('hourlySelection').textContent='';const compact=matchMedia('(max-width:700px)').matches;const allRows=state.hourlyDay===0?state.computed.todayRows:state.computed.tomorrowRows;const nowHour=currentSeoulHour();state.hourlyKey=nowHour;const rows=compact&&state.hourlyDay===0&&dateOnly(nowHour)===state.computed.today?allRows.filter(r=>r.time>=nowHour):allRows;renderHourlyChart($('hourlyChart'),rows,renderHourlyDetail);$('hourlyTextAlternative').textContent=rows.map(r=>`${timeOnly(r.time)} ${r.score??'--'}점${r.observed?` 최신 관측(${timeOnly(r.observation_time)}) 반영`:''}`).join(', ');if(!rows.some(r=>Number.isFinite(r.score))) $('hourlyDetail').innerHTML=`<p class="muted">${state.hourlyDay===0?'오늘 남은 시간대':'선택한 날짜'}의 기상청 예보가 없습니다.</p>`;const observed=state.hourlyDay===0&&rows.find(r=>r.observed&&r.time===nowHour);$('hourlyDataNote').textContent=observed?`현재 시간대는 ${timeOnly(observed.observation_time)} 기상청 관측값과 최신 대기질을 반영합니다. 이후 시간대는 예보 점수입니다.`:'시간대별 점수는 기상청 예보를 바탕으로 계산합니다.';const nextButton=$('hourlyNextDay');nextButton.hidden=!(compact&&state.hourlyDay===0&&rows.length<=3);document.querySelectorAll('[data-hourly-day]').forEach((b,i)=>{b.classList.toggle('active',i===state.hourlyDay);b.setAttribute('aria-pressed',String(i===state.hourlyDay));});}
 function conditionFor(key,value){if(!Number.isFinite(value))return{key:'unknown',label:'정보 없음'};if(key==='air_stagnation_index'){if(value<=25)return{key:'good',label:'낮음'};if(value<=50)return{key:'normal',label:'보통'};if(value<=75)return{key:'bad',label:'높음'};return{key:'very-bad',label:'매우 높음'};}if(key==='uv_index'){if(value<=2)return{key:'good',label:'낮음'};if(value<=5)return{key:'normal',label:'보통'};if(value<=7)return{key:'bad',label:'높음'};return{key:'very-bad',label:value>=11?'위험':'매우 높음'};}const rules={temperature_2m:[[5,18],[0,23],[-5,29]],apparent_temperature:[[5,18],[0,23],[-5,29]],relative_humidity_2m:[[30,60],[20,70],[10,82]],dew_point_2m:[[-30,10],[-30,15],[-30,20]],precipitation_probability:[[0,10],[0,30],[0,60]],precipitation:[[0,0],[0,.5],[0,2]],wind_speed_10m:[[0,12],[0,20],[0,30]],wind_gusts_10m:[[0,20],[0,30],[0,45]],pm2_5:[[0,15],[0,35],[0,75]],pm10:[[0,30],[0,80],[0,150]],air_quality_index:[[0,50],[0,100],[0,250]]};const bands=rules[key];if(!bands)return{key:'unknown',label:'참고'};if(value>=bands[0][0]&&value<=bands[0][1])return{key:'good',label:'좋음'};if(value>=bands[1][0]&&value<=bands[1][1])return{key:'normal',label:'보통'};if(value>=bands[2][0]&&value<=bands[2][1])return{key:'bad',label:'안좋음'};return{key:'very-bad',label:'아주 안좋음'};}
 function scoreCondition(score){if(!Number.isFinite(score))return{key:'unknown',label:'정보 없음'};if(score>=90)return{key:'good',label:'좋음'};if(score>=75)return{key:'normal',label:'보통'};if(score>=60)return{key:'bad',label:'안좋음'};return{key:'very-bad',label:'아주 안좋음'};}
 function scoreFactors(rows){const basis=hourlySlots(rows).sort((a,b)=>b.score-a.score).slice(0,4);if(!basis.length)return [];const keys=[['temperature','체감'],['sunExposure','햇빛 열부담(추정)'],['dewPoint','습기(이슬점)'],['humidity','습기(습도)'],['rain','강수'],['wind','바람'],['airQuality','대기질'],['uv','자외선']];return keys.map(([key,label])=>({label,loss:Math.round(basis.reduce((n,r)=>n+(r.deductions||runningScoreDeductions(r))[key],0)/basis.length)})).filter(f=>f.loss>0).sort((a,b)=>b.loss-a.loss).slice(0,3);}
@@ -389,6 +408,8 @@ async function chooseLocation(loc){
   $('locationConfirm').disabled=true;$('locationError').textContent='행정구역과 가까운 대기 측정소를 확인하고 있습니다…';
   for(const id of ['heroTemp','heroFeels','heroHumidity','heroDew','heroWind','heroUv'])$(id).textContent='--';
   renderDepartureComparison();
+  $('currentScoreScale').hidden=true;
+  $('daylightTimeline').hidden=true;
   $('todayBestTime').textContent='조회 중';$('updatedAt').textContent='조회 중';
   state.selectedLocation=null;setStored('location',state.location);$('locationConfirm').hidden=true;$('locationConfirm').disabled=false;$('locationDialog').close();loadData(true);
 }
@@ -424,4 +445,4 @@ addEventListener('offline',()=>loadData(true));
 calculatorTemplate();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=57',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=58',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
