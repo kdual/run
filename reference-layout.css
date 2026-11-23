@@ -219,7 +219,7 @@ html { scroll-padding-top:12px; }
   --surface-2:#f0efe9;
   --line:#dedcd3;
   --journal-rule:#181816;
-  --journal-mono:"JetBrains Mono","SFMono-Regular",Consolas,monospace;
+  --journal-mono:"JetBrains Mono",SFMono-Regular,Consolas,"Liberation Mono","Noto Sans KR",monospace;
   --dashboard-width:1024px;
   --dashboard-gap:14px;
 }
@@ -294,7 +294,7 @@ html { scroll-padding-top:12px; }
 .dashboard .advisory-status summary { padding-block:3px; }
 .dashboard .card { --journal-pad:18px; }
 .dashboard .section-heading { gap:8px; flex-wrap:wrap; }
-.dashboard .section-heading h2 { font-size:1rem; font-weight:850; }
+.dashboard .section-heading h2 { font-size:1rem; font-weight:900; text-wrap:balance; }
 .dashboard .section-index { font-size:.6875rem; }
 
 .dashboard .hero {
@@ -305,10 +305,10 @@ html { scroll-padding-top:12px; }
 }
 .dashboard .hero-heading { padding:13px 20px; }
 .hero-title { display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 12px; }
-.dashboard .hero-heading h1 { font-size:clamp(1.2rem,3vw,1.55rem); letter-spacing:-.035em; }
+.dashboard .hero-heading h1 { font-size:clamp(1.2rem,3vw,1.55rem); font-weight:900; letter-spacing:-.035em; text-wrap:balance; }
 .hero .hero-main { padding:20px; border-inline-end:1px solid var(--line); }
 .hero .score-lockup { align-items:center; flex-wrap:nowrap; margin-top:0; }
-.dashboard .score-number { font-size:clamp(3.65rem,7vw,4.65rem); letter-spacing:-.06em; }
+.dashboard .score-number { font-size:clamp(3.65rem,7vw,4.65rem); font-weight:800; letter-spacing:-.04em; }
 .score-labels { display:grid; justify-items:end; gap:5px; margin-inline-start:auto; }
 .score-labels .grade-pill { margin:0; padding:2px 7px; }
 .score-labels .factor-row { justify-content:flex-end; margin:0; }
