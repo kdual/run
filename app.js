@@ -155,7 +155,7 @@ async function loadData(force=false){
 function render(){
   const {weather,air}=state.data;const forecastHourly=mergeHourly(weather,air,state.data.forecast);const current=currentConditions(weather,forecastHourly,air,new Date(),state.location);const hourly=includeCurrentObservation(forecastHourly,current);const today=currentSeoulDate();const nowHour=currentSeoulHour();const todayRows=rowsForDate(hourly,today);const futureTodayRows=todayRows.filter(row=>row.time>=nowHour);const tomorrow=addCalendarDays(today,1);const tomorrowRows=rowsForDate(hourly,tomorrow);const best=findBestRunningTimes(todayRows,3,state.duration);const futureBest=best[0];const todayScore=dailyScore(todayRows);const tomorrowScore=dailyScore(tomorrowRows);
   state.computed={hourly,current,today,todayRows,futureTodayRows,tomorrowRows,best,todayScore,tomorrowScore};
-  renderHero(current,futureBest);renderCurrent(current,weather);renderBest(best);renderHourly();renderComparison(todayScore,tomorrowScore);renderCoach(current,futureBest);renderWeekly(weather,hourly);renderWorkouts(current);renderGear(current);
+  renderHero(current,futureBest);renderCurrent(current,weather);renderBest(best);renderHourly();renderCoach(current,futureBest);renderWeekly(weather,hourly);renderWorkouts(current);renderGear(current);
   $('updatedAt').textContent=`업데이트 ${new Intl.DateTimeFormat('ko-KR',{hour:'2-digit',minute:'2-digit'}).format(new Date(state.data.savedAt))}${state.data.fromCache?' · 저장 데이터':''}`;
   const station=air?.current?.station_name;const measured=air?.current?.measured_at;
   const living=weather.life_indices;const livingReady=living?.uv==='ok'||living?.air_stagnation==='ok';
@@ -183,8 +183,20 @@ function renderHero(current,best){
  $('heroDew').textContent=formatValue(current.dew_point_2m,'°C',1);
  $('heroWind').textContent=formatValue(current.wind_speed_10m,' km/h',1);
  $('heroUv').textContent=Number.isFinite(current.uv_index)?'UV '+round(current.uv_index,1):'UV 정보 없음';
+}
+
+function renderBestSelection(best){
+ const current=state.computed.current;
+ const difference=best&&Number.isFinite(current.score)?best.score-current.score:null;
+ const selectedIsHighest=!best||best===state.computed.best[0];
+ $('todayBestLabel').textContent=selectedIsHighest?'오늘 최고 구간':'선택한 추천 구간';
  $('todayBestTime').textContent=best?timeOnly(best.start)+'–'+endLabel(best):'남은 추천 시간 없음';
+ $('todayBestScore').textContent=best?`(${best.score}점${difference===null?'':`, ${difference>=0?'+':'−'}${Math.abs(difference)}점`})`:'';
+ const observationTime=current.observation_time;
+ $('heroReferenceTime').textContent=observationTime?`관측 ${timeOnly(observationTime)} · ${state.duration}분 러닝 기준 · `:`${state.duration}분 러닝 기준 · `;
  renderDepartureComparison(current,best);
+ renderDaylightRecommendation(best);
+ renderEnvironmentNotice(current,best);
 }
 function mountDepartureComparison(){
   const weather=document.querySelector('.hero-side');
@@ -193,10 +205,10 @@ function mountDepartureComparison(){
   weather.before(aside);
   aside.append(weather);
   aside.insertAdjacentHTML('beforeend', `
-    <section class="departure-comparison" aria-labelledby="departureComparisonTitle">
+    <section id="departureComparison" class="departure-comparison" aria-labelledby="departureComparisonTitle">
       <h2 id="departureComparisonTitle">지금 vs 추천 시간 비교</h2>
       <table aria-labelledby="departureComparisonTitle" aria-describedby="departureComparisonNote">
-        <thead><tr><th scope="col">항목</th><th scope="col">지금</th><th scope="col">추천 <span id="departureBestTime"></span></th></tr></thead>
+        <thead><tr><th scope="col">항목</th><th scope="col">지금 <span id="departureObservationTime"></span></th><th scope="col">추천 <span id="departureBestTime"></span></th></tr></thead>
         <tbody>
           <tr><th scope="row">러닝 점수</th><td id="departureCurrentScore">—</td><td><strong id="departureBestScore">—</strong><span id="departureScoreDelta" hidden></span></td></tr>
           <tr><th scope="row">체감온도</th><td id="departureCurrentFeels">—</td><td id="departureBestFeels">—</td></tr>
@@ -221,6 +233,7 @@ function renderDepartureComparison(current,best){
     $(id).textContent=Number.isFinite(value)?formatValue(value,unit,digits):'—';
   }
   $('departureBestTime').textContent=best?timeOnly(best.start)+'–'+endLabel(best):'';
+  $('departureObservationTime').textContent=current?.observation_time?`(${timeOnly(current.observation_time)})`:'';
   const delta=$('departureScoreDelta');
   const comparable=Number.isFinite(current?.score)&&Number.isFinite(best?.score);
   delta.hidden=!comparable;
@@ -235,7 +248,29 @@ function renderDepartureComparison(current,best){
     :current?'오늘 남은 추천 시간대가 없습니다.':'러닝 조건을 확인하는 중입니다.';
 }
 function endLabel(block){const d=new Date(Date.parse(`${block.start}:00+09:00`)+block.durationMinutes*60000);return String((d.getUTCHours()+9)%24).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');}
-function renderBest(best){$('bestTimes').innerHTML=best.length?best.map((b,i)=>`<li><span class="rank-index" aria-hidden="true">${String(i+1).padStart(2,'0')}</span><span><strong>${timeOnly(b.start)}–${endLabel(b)}</strong><small>${b.durationMinutes}분 추천 구간${b.durationMinutes===30?' · 시간별 예보 기반':''}</small></span><span class="point">${b.score}점</span></li>`).join(''):'<li class="best-empty"><span>오늘 남은 추천 시간대가 없습니다.</span></li>';}
+function renderBest(best){
+ const list=$('bestTimes');
+ if(!best.length){
+   list.innerHTML='<li class="best-empty">오늘 남은 추천 시간대가 없습니다.</li>';
+   renderBestSelection();
+   return;
+ }
+ const selected=best.find(block=>block.start===state.selectedRunStart&&block.durationMinutes===state.selectedRunDuration)??best[0];
+ list.innerHTML=best.map((block,index)=>`<li><button type="button" aria-pressed="${block===selected}" aria-controls="departureComparison">
+   <span class="rank-index" aria-hidden="true">${String(index+1).padStart(2,'0')}</span>
+   <span><strong>${timeOnly(block.start)}–${endLabel(block)}</strong><small>${block.durationMinutes}분 추천 구간${block.durationMinutes===30?' · 시간별 예보 기반':''}</small></span>
+   <span class="point">${block.score}점</span>
+ </button></li>`).join('');
+ const buttons=[...list.querySelectorAll('button')];
+ buttons.forEach((button,index)=>button.addEventListener('click',()=>{
+   const block=best[index];
+   state.selectedRunStart=block.start;
+   state.selectedRunDuration=block.durationMinutes;
+   buttons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+   renderBestSelection(block);
+ }));
+ renderBestSelection(selected);
+}
 
 function renderCurrent(c,w){const overall=scoreCondition(c.score);$('currentWeatherCard').dataset.condition=overall.key;$('currentWeatherCondition').className=`score-condition-badge condition-${overall.key}`;$('currentWeatherCondition').textContent=`${c.score??'--'}점 · ${overall.label}`;$('weatherIcon').innerHTML=weatherIcon(c.weather_code);const items=[['temperature_2m','기온',formatValue(c.temperature_2m,'°C',1),c.temperature_2m],['apparent_temperature','체감',formatValue(c.apparent_temperature,'°C',1),c.apparent_temperature],['relative_humidity_2m','습도',formatValue(c.relative_humidity_2m,'%'),c.relative_humidity_2m],['dew_point_2m','이슬점',formatValue(c.dew_point_2m,'°C',1),c.dew_point_2m],['precipitation_probability','강수확률',formatValue(c.precipitation_probability,'%'),c.precipitation_probability],['precipitation','강수량',formatValue(c.precipitation,' mm',1),c.precipitation],['wind_speed_10m','바람',formatValue(c.wind_speed_10m,' km/h',1),c.wind_speed_10m],['air_stagnation_index','대기정체',formatValue(c.air_stagnation_index,'',0),c.air_stagnation_index],['pm2_5','PM2.5',formatValue(c.pm2_5,' μg/m³',1),c.pm2_5],['pm10','PM10',formatValue(c.pm10,' μg/m³',1),c.pm10],['air_quality_index','통합대기지수',formatValue(c.air_quality_index,''),c.air_quality_index],['uv_index','UV',formatValue(c.uv_index,'',1),c.uv_index]];const primaryKeys=['temperature_2m','apparent_temperature','air_stagnation_index','precipitation_probability'];
  const airKeys=new Set(['pm2_5','pm10','air_quality_index']);
@@ -243,7 +278,7 @@ function renderCurrent(c,w){const overall=scoreCondition(c.score);$('currentWeat
    const pending=state.data?.airPending&&airKeys.has(key)&&!Number.isFinite(raw);
    const condition=pending?{key:'unknown',label:'갱신 중'}:conditionFor(key,raw);
    const display=Number.isFinite(raw)?value:'—';
-   return `<div class="weather-summary-cell">
+   return `<div class="weather-summary-cell" data-metric="${key}" data-condition="${condition.key}">
      <dt>${label}</dt>
      <dd><strong class="weather-summary-value">${display}</strong>
        <span class="weather-summary-badge" data-condition="${condition.key}">${condition.label}</span></dd>
@@ -271,30 +306,73 @@ function renderSunStatus(){
   const timeline=$('daylightTimeline');
   const points=[sun?.astronomical_dawn,sun?.sunrise,sun?.sunset,sun?.astronomical_dusk,now];
   timeline.hidden=!points.every(Boolean);
+  $('daylightLegend').hidden=timeline.hidden;
+  $('daylightClock').textContent=sun?`${timeOnly(now)} 현재`:'';
   if(!timeline.hidden){
     const positions=['--dawn','--sunrise','--sunset','--dusk','--now'];
-    points.forEach((time,index)=>{
+    const minutes=points.map(time=>{
       const [hours,minutes]=timeOnly(time).split(':').map(Number);
-      timeline.style.setProperty(positions[index],`${(hours*60+minutes)/14.4}%`);
+      return hours*60+minutes;
     });
+    const start=Math.max(0,minutes[0]-120);
+    const end=Math.min(1440,minutes[3]+120);
+    minutes.forEach((value,index)=>{
+      const percent=(Math.min(end,Math.max(start,value))-start)*100/(end-start);
+      timeline.style.setProperty(positions[index],`${percent}%`);
+    });
+    $('daylightLegend').innerHTML=['첫빛','일출','일몰','어둠'].map((label,index)=>`<span>${timeOnly(points[index])} ${label}</span>`).join('');
   }
   if(!sun){$('sunStatus').textContent='일출·일몰 시각을 계산할 수 없습니다.';$('daylightBadge').textContent='정보 없음';return;}
   const phase=now<(sun.astronomical_dawn||sun.sunrise)||now>=(sun.astronomical_dusk||sun.sunset)
     ?'완전한 어둠':now<sun.sunrise?'일출 전 박명':now<sun.sunset?'낮':'일몰 후 박명';
   $('daylightBadge').textContent=phase;
+  $('daylightBadge').dataset.phase=phase==='낮'?'day':'night';
   const countdown=target=>{const minutes=Math.max(0,Math.ceil((Date.parse(`${target}:00+09:00`)-Date.parse(`${now}:00+09:00`))/60000));return `${Math.floor(minutes/60)}시간 ${minutes%60}분`;};
   const nextDawn=sunForDate(addCalendarDays(currentSeoulDate(),1))?.astronomical_dawn;
   let message;
   if(now<(sun.astronomical_dawn||sun.sunrise))message=`첫빛까지 ${countdown(sun.astronomical_dawn||sun.sunrise)} · 새벽 러닝에는 조명을 준비하세요.`;
   else if(now<(sun.nautical_dawn||sun.sunrise))message=`새벽빛이 시작됐습니다 · 일출까지 ${countdown(sun.sunrise)}.`;
   else if(now<sun.sunrise)message=`항해박명(BMNT) 이후 · 일출까지 ${countdown(sun.sunrise)}.`;
-  else if(now<sun.sunset)message=`일몰까지 ${countdown(sun.sunset)} · 어두워지기 전 안전 장비를 확인하세요.`;
+  else if(now<sun.sunset){
+    $('sunStatus').innerHTML=`일몰까지 <strong>${countdown(sun.sunset)}</strong> 남음`;
+    return;
+  }
   else if(now<(sun.nautical_dusk||sun.astronomical_dusk))message=`일몰 후 박명 · 완전한 어둠까지 ${countdown(sun.astronomical_dusk||sun.nautical_dusk)}.`;
   else if(now<sun.astronomical_dusk)message=`항해박명 종료(EENT) 이후 · 완전한 어둠까지 ${countdown(sun.astronomical_dusk)}.`;
   else message=nextDawn?`완전한 어둠 · 내일 첫빛까지 ${countdown(nextDawn)}. 반사 장비와 조명을 챙기세요.`:'완전한 어둠 · 반사 장비와 조명을 챙기세요.';
   $('sunStatus').textContent=message;
 }
 
+function recommendationNeedsLights(best){
+  const sun=state.todaySun;
+  return Boolean(best&&sun?.sunrise&&sun?.sunset&&(best.start<sun.sunrise||best.end>sun.sunset));
+}
+
+function renderDaylightRecommendation(best){
+  const note=$('daylightRunNote');
+  const hasDaylight=best&&state.todaySun?.sunrise&&state.todaySun?.sunset;
+  note.hidden=!hasDaylight;
+  if(hasDaylight)note.textContent=recommendationNeedsLights(best)
+    ?`${timeOnly(best.start)} 추천 구간에 어두운 시간이 포함됩니다 · 반사 밴드와 조명 권장`
+    :`${timeOnly(best.start)} 추천 구간은 일출과 일몰 사이입니다.`;
+}
+
+function renderEnvironmentNotice(current,best){
+  const notices=environmentAlerts(current).filter(message=>message!=='특별한 환경 주의사항이 없습니다.');
+  const feels=current.apparent_temperature;
+  const rain=current.precipitation_probability;
+  const chips=notices.map(message=>message==='비 · 미끄러운 노면 주의'
+    ? [Number.isFinite(rain)?`노면 미끄러움 주의 (강수 ${rain}%)`:'노면 미끄러움 주의','warning']
+    : [message,'warning']);
+  if(Number.isFinite(current.wind_speed_10m)&&current.wind_speed_10m>20&&!chips.some(([message])=>message.startsWith('강풍'))){
+    chips.push(['바람 20 km/h 초과 · 노출 구간 확인','warning']);
+  }
+  if(Number.isFinite(feels)&&feels<10)chips.push(['쌀쌀한 체감온도 · 충분한 워밍업','cold']);
+  if(recommendationNeedsLights(best))chips.push([`${timeOnly(best.start)} 추천 구간 · 야간 가시성 확보`,'neutral']);
+  if(!chips.length)chips.push(['특별한 환경 주의사항이 없습니다.','neutral']);
+  $('alerts').innerHTML=chips.map(([message,tone])=>`<li data-tone="${tone}">${escapeHtml(message)}</li>`).join('');
+  $('environmentNotice').hidden=false;
+}
 
 function currentSeoulMinute(){return new Date().toLocaleString('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).replace(' ','T');}
 function currentSeoulHour(){return currentSeoulMinute().slice(0,13)+':00';}
@@ -305,15 +383,15 @@ function scoreFactors(rows){const basis=hourlySlots(rows).sort((a,b)=>b.score-a.
 function factorChips(rows){if(!hourlySlots(rows).length)return '<span class="factor-chip">자료 부족 · 감점 계산 제한</span>';const factors=scoreFactors(rows);return factors.length?factors.map(f=>`<span class="factor-chip">${f.label} −${f.loss}</span>`).join(''):'<span class="factor-chip favorable">큰 감점 없음</span>';}
 function renderHourlyDetail(r){$('hourlySelection').textContent=' · '+timeOnly(r.time);const overall=scoreCondition(r.score);const date=new Intl.DateTimeFormat('ko-KR',{month:'long',day:'numeric',weekday:'short'}).format(new Date(`${r.time}:00+09:00`));const forecastAir=r.air_quality_estimated;const measuredIndex=forecastAir?null:r.air_quality_index;const metrics=[['temperature_2m','기온',formatValue(r.temperature_2m,'°C',1),r.temperature_2m],['apparent_temperature','체감',formatValue(r.apparent_temperature,'°C',1),r.apparent_temperature],['relative_humidity_2m','습도',formatValue(r.relative_humidity_2m,'%'),r.relative_humidity_2m],['dew_point_2m','이슬점',formatValue(r.dew_point_2m,'°C',1),r.dew_point_2m],['precipitation_probability','강수확률',formatValue(r.precipitation_probability,'%'),r.precipitation_probability],['precipitation','강수량',formatValue(r.precipitation,' mm',1),r.precipitation],['wind_speed_10m','바람',formatValue(r.wind_speed_10m,' km/h',1),r.wind_speed_10m],['uv_index','UV',formatValue(r.uv_index,'',1),r.uv_index],['air_stagnation_index','대기정체',formatValue(r.air_stagnation_index,'',0),r.air_stagnation_index],['pm2_5','PM2.5 실측',formatValue(r.pm2_5,' μg/m³',1),r.pm2_5],['pm10','PM10 실측',formatValue(r.pm10,' μg/m³',1),r.pm10],['air_quality_index','통합대기지수',forecastAir?'미래 실측값 없음':formatValue(measuredIndex,''),measuredIndex]];const missingNote=r.missing?.length?`<p class="hourly-air-note">일부 정보 미반영: ${escapeHtml(r.missing.join(' · '))}</p>`:'';const forecastNote=forecastAir?`<p class="hourly-air-note">권역 PM 일일 예보: <strong>${escapeHtml(r.air_forecast_grade||'정보 없음')}</strong> · 시간별 통합대기지수 예보는 아닙니다.</p>`:'';$('hourlyDetail').innerHTML=`<div class="hourly-detail-heading"><strong>${date} · ${r.observed?`${timeOnly(r.observation_time)} 관측 반영`:'예보'}</strong><span class="hourly-score condition-${overall.key}">${r.score??'--'}점 · ${overall.label}</span></div><div class="hourly-metrics">${metrics.map(([key,label,value,raw])=>{const c=conditionFor(key,raw);return`<span class="condition-${c.key}"><small>${label}</small><strong>${value}</strong><em>${forecastAir&&key==='air_quality_index'?'시간별 값 없음':c.label}</em></span>`;}).join('')}</div>${forecastNote}${missingNote}`;}
 
-function renderComparison(today,tomorrow){
- const diff=Number.isFinite(today)&&Number.isFinite(tomorrow)?tomorrow-today:null;
- $('comparisonMessage').textContent=diff===null?'오늘·내일 비교 예보 없음':diff===0?'오늘과 내일 점수가 같습니다':`내일은 오늘보다 ${Math.abs(diff)}점 ${diff>0?'높습니다':'낮습니다'}`;
+function dailyComparison(){
+ const {todayScore,tomorrowScore}=state.computed;
+ if(!Number.isFinite(todayScore)||!Number.isFinite(tomorrowScore))return '오늘과 내일을 비교할 수 있는 예보가 부족합니다.';
+ const diff=tomorrowScore-todayScore;
+ const summary=diff===0?'오늘과 내일 점수가 같습니다':`내일은 오늘보다 ${Math.abs(diff)}점 ${diff>0?'높습니다':'낮습니다'}`;
  const coverageToday=dailyCoverage(state.computed.todayRows),coverageTomorrow=dailyCoverage(state.computed.tomorrowRows);
- $('comparisonMessage').textContent+=` · 자료 ${coverageToday.hours}/${coverageToday.total}시간 vs ${coverageTomorrow.hours}/${coverageTomorrow.total}시간 · 추정 비교`;
- $('comparisonMessage').dataset.trend=diff===null?'unknown':diff>0?'up':diff<0?'down':'same';
+ return `오늘 ${todayScore}점 · 내일 ${tomorrowScore}점. ${summary} (예보 자료 오늘 ${coverageToday.hours}/${coverageToday.total}시간, 내일 ${coverageTomorrow.hours}/${coverageTomorrow.total}시간)`;
 }
 function renderCoach(c,best){
- $('coachMessage').textContent=coachMessage(c,best);
  const airPoor=poorAir(c);
  const intensity=!Number.isFinite(c.score)?'자료 확인 후 결정':c.score<40?'실내 운동 또는 휴식':airPoor||c.score<70?'짧고 가벼운 러닝':c.score<85?'대화 가능한 편안한 페이스':'평소 계획한 강도';
  const intensityDetail=!Number.isFinite(c.score)?'최신 날씨가 부족해 강도를 추천할 수 없습니다.':c.score<40?'현재 환경 점수가 낮아 야외 러닝에 신중하세요.':airPoor?'현재 측정된 대기질을 고려하세요.':c.score<70?'강도보다 편안한 움직임을 우선하세요.':c.score<85?'몸 상태에 맞춰 페이스를 조절하세요.':'날씨 외에 몸 상태도 확인하세요.';
@@ -323,9 +401,15 @@ function renderCoach(c,best){
  const reasons=Object.entries(c.deductions||runningScoreDeductions(c)).sort((a,b)=>b[1]-a[1]);
  const primary=reasons[0],factorInfo={temperature:['체감온도',temperatureFactorAdvice(c)],sunExposure:['햇빛 열부담(추정)','그늘이 적은 코스라면 페이스를 낮추거나 해가 약한 시간대를 선택하세요.'],dewPoint:['이슬점','후반부 체감 부담을 살펴보세요.'],humidity:['습도','땀 배출이 불편한지 살펴보세요.'],rain:['비','노면 상태를 확인하세요.'],wind:['바람','바람이 강한 구간을 확인하세요.'],airQuality:['대기질','측정된 미세먼지 수치를 다시 확인하세요.'],uv:['자외선','노출이 적은 시간대를 고려하세요.']};
  const factor=primary&&primary[1]>=1?factorInfo[primary[0]]:null;
- const insights=[['권장 강도',intensity,intensityDetail],['지금 또는 나중',timing,timingDetail],['가장 큰 환경 변수',factor?`${factor[0]} −${Math.round(primary[1])}점`:'큰 감점 없음',factor?factor[1]:'점수에 큰 영향을 준 날씨 요인이 없습니다.']];
- $('coachInsights').innerHTML=insights.map(([label,value,detail])=>`<div class="coach-insight"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small class="coach-insight-detail">${escapeHtml(detail)}</small></div>`).join('');
- $('alerts').innerHTML=environmentAlerts(c).map(a=>`<span class="alert-chip">${escapeHtml(a)}</span>`).join('');
+ const badge=$('coachBadge');
+ badge.hidden=!factor;
+ badge.textContent=factor?`${factor[0]} −${Math.round(primary[1])}점`:'';
+ const insights=[
+   [timing,timingDetail],
+   [intensity,factor?`${factor[1]} ${intensityDetail}`:coachMessage(c,best)],
+   ['오늘과 내일 비교',dailyComparison()]
+ ];
+ $('coachInsights').innerHTML=insights.map(([title,detail])=>`<li class="coach-insight"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(detail)}</small></li>`).join('');
 }
 
 function renderWeekly(w,hourly){
@@ -337,10 +421,12 @@ function renderWeekly(w,hourly){
    .sort((a,b)=>a.date.localeCompare(b.date))
    .slice(0,4);
  const cards=$('weeklyCards');
- $('weeklyIndex').textContent=forecast.length?'07 / '+forecast.length+'-DAY':'07 / FORECAST';
+ $('weeklyIndex').textContent=forecast.length?'07 / '+forecast.length+'-DAY FORECAST':'07 / FORECAST';
+ $('weeklyTitle').textContent=forecast.length?`향후 ${forecast.length}일 러닝 날씨`:'단기 러닝 날씨';
+ $('forecastDetails').hidden=!forecast.length;
  if(!forecast.length){
    cards.replaceChildren();
-   $('selectedDayDetail').innerHTML='<p class="muted">표시할 수 있는 러닝 예보가 없습니다.</p>';
+   $('forecastSummary').textContent='표시할 수 있는 러닝 예보가 없습니다.';
    return;
  }
  cards.style.setProperty('--forecast-columns',String(forecast.length));
@@ -348,11 +434,12 @@ function renderWeekly(w,hourly){
  const bestScore=Math.max(...forecast.map(day=>day.score));
  cards.innerHTML=forecast.map(({date,index,score})=>{
    const condition=scoreCondition(score);
+   const weather=dailyForecastWeather(w.daily,index);
    return `<button type="button" class="day-card ${index===selected?'active':''}" data-day-index="${index}"
-    aria-pressed="${index===selected}" aria-label="${monthDay(date)} ${score}점 ${condition.label}">
-    <span>${date===today?'오늘':weekday(date)} ${Number(date.slice(-2))}</span><strong>${score}</strong>
-    <div class="week-score-track" data-score-condition="${condition.key}" aria-hidden="true"><i style="width:${score}%"></i></div>
-    <small class="day-condition condition-${condition.key}">${score===bestScore?'BEST':condition.label}</small></button>`;
+    aria-pressed="${index===selected}" aria-label="${monthDay(date)} ${score}점 ${condition.label}${score===bestScore?' · 최고 점수':''} · ${weather}">
+    <span class="forecast-day-heading"><span>${date===today?'오늘':weekday(date)} ${Number(date.slice(-2))}</span>${score===bestScore?'<span class="forecast-best">★ BEST</span>':''}</span>
+    <strong>${score}<small>점</small></strong>
+    <span class="forecast-weather">${weather}</span></button>`;
  }).join('');
  const buttons=cards.querySelectorAll('.day-card');
  for(const button of buttons)button.addEventListener('click',()=>{
@@ -366,17 +453,51 @@ function renderWeekly(w,hourly){
  });
  renderSelectedDay(selected,w,hourly,scores);
 }
+function dailyForecastWeather(daily,index){
+ const low=daily.temperature_2m_min?.[index];
+ const high=daily.temperature_2m_max?.[index];
+ const rain=daily.precipitation_probability_max?.[index];
+ const temperature=Number.isFinite(low)&&Number.isFinite(high)?`${formatValue(low,'°',0)}/${formatValue(high,'°',0)}`:'기온 정보 없음';
+ return `${temperature} · ${Number.isFinite(rain)?'비 '+formatValue(rain,'%'):'강수 정보 없음'}`;
+}
 function renderSelectedDay(i,w,hourly,scores){
  const date=w.daily.time[i],allRows=rowsForDate(hourly,date),available=Number.isFinite(scores[i]),condition=scoreCondition(scores[i]);
  if(!available){$('selectedDayDetail').innerHTML=`<div class="week-detail-header"><strong>${monthDay(date)} (${weekday(date)})</strong><span>단기예보 범위 밖 · 점수 없음</span></div><p class="muted">중기예보 연결 전까지 점수와 추천 시간은 표시하지 않습니다.</p>`;return;}
- const remaining=date===currentSeoulDate()?allRows.filter(r=>r.time>=currentSeoulHour()):allRows;
  const best=findBestRunningTimes(allRows,1,state.duration)[0],stagnation=conditionFor('air_stagnation_index',w.daily.air_stagnation_index_max?.[i]);
+ const label=`${date===currentSeoulDate()?'오늘':weekday(date)} ${Number(date.slice(-2))}`;
+ const summary=best?`${timeOnly(best.start)}–${endLabel(best)} 추천 · ${best.score}점 (${state.duration}분 구간 평균)`:`일별 점수 ${scores[i]}점 · 추천 시간 없음`;
+ $('forecastSummary').innerHTML=`<strong>[${label}]</strong> ${summary}`;
  const missing=[...new Set(allRows.flatMap(r=>r.missing||[]))];
  const tiles=[['기온',`${formatValue(w.daily.temperature_2m_min[i],'°',0)}–${formatValue(w.daily.temperature_2m_max[i],'°C',0)}`],['강수확률',formatValue(w.daily.precipitation_probability_max[i],'%')],['최대 UV',formatValue(w.daily.uv_index_max[i],'',1)],['대기정체',stagnation.label]];
  $('selectedDayDetail').innerHTML=`<div class="week-detail-header"><strong>${monthDay(date)} (${weekday(date)}) <span class="condition-text-${condition.key}">${scores[i]??'—'}점 · ${condition.label}</span></strong><small>기상청 단기예보 · ${dailyCoverage(allRows).hours}/19시간 자료${dailyCoverage(allRows).coarse?' · 3시간 간격 예보를 확장한 추정':''}</small></div><div class="week-detail-tiles">${tiles.map(([label,value])=>`<div><span>${label}</span><strong>${value}</strong></div>`).join('')}</div><div class="week-best"><span>추천 러닝</span><strong>${best?`${timeOnly(best.start)}–${endLabel(best)}`:'추천 시간 없음'}</strong></div><div class="factor-row">${factorChips(allRows)}</div>${missing.length?`<p class="hourly-air-note">일부 시간대 미반영: ${escapeHtml(missing.join(" · "))}</p>`:""}`;
 }
-function renderWorkouts(c){const scores=workoutScores(c);$('workoutScores').innerHTML=Object.entries(scores).map(([name,score])=>{const condition=scoreCondition(score);return`<div class="workout-row" data-score-condition="${condition.key}"><span>${name}</span><div class="bar"><i style="width:${score??0}%"></i></div><strong>${score??'—'}</strong></div>`;}).join('');}
-function renderGear(c){$('gearAdvice').innerHTML=Object.entries(gearAdvice(c)).map(([k,v])=>`<div class="gear-item"><span>${k}</span><strong>${v}</strong></div>`).join('');}
+function renderWorkouts(c){
+ const scores=workoutScores(c);
+ const weather=[['현재',c.temperature_2m,'°C'],['체감',c.apparent_temperature,'°C'],['강수',c.precipitation_probability,'%']]
+   .filter(([,value])=>Number.isFinite(value)).map(([label,value,unit])=>`${label} ${formatValue(value,unit,1)}`);
+ $('workoutWeather').textContent=weather.length?`${weather.join(' · ')} 기준`:'';
+ const workouts=[
+   ['Easy','Easy Run','편안한 강도의 조깅'],
+   ['Recovery','Recovery','가벼운 회복 조깅'],
+   ['Long Run','Long Run','꾸준한 페이스로 거리 늘리기'],
+   ['Tempo','Tempo Run','일정한 빠른 페이스 유지'],
+   ['Interval','Interval','빠른 구간과 회복 구간 반복'],
+   ['Race','Race Pace','목표 레이스 페이스 연습']
+ ];
+ $('workoutScores').innerHTML=workouts.map(([key,label,detail])=>{
+   const score=scores[key];
+   return `<div class="workout-row" data-workout-condition="${scoreCondition(score).key}">
+     <span class="workout-label">${label} <small>${detail}</small></span>
+     <strong>${Number.isFinite(score)?`${score}점`:'—'}</strong>
+     <div class="bar" aria-hidden="true"><i style="width:${score??0}%"></i></div>
+   </div>`;
+ }).join('');
+}
+function renderGear(c){
+ const gear=gearAdvice(c);
+ $('gearAdvice').innerHTML=[['TOP','상의'],['BOTTOM','하의'],['ACC','추가']].map(([tag,label])=>
+   `<div class="gear-item"><span>${tag} · ${label}</span><strong>${escapeHtml(gear[label])}</strong></div>`).join('');
+}
 
 function calculatorTemplate(){const html=state.calcMode==='pace'?`<div class="field"><label for="paceInput">페이스 (분:초/km)</label><input id="paceInput" type="text" value="500" inputmode="numeric" autocomplete="off" aria-describedby="paceInputHint"><small id="paceInputHint">숫자만 입력: 530 → 5:30, 600 → 6:00 · 5:30도 가능</small></div>`:`<div class="field"><label for="speedInput">속도 (km/h)</label><input id="speedInput" type="text" inputmode="decimal" autocomplete="off" value="12" aria-describedby="speedInputHint"><small id="speedInputHint">소수점 입력 가능: 10.5 km/h</small></div>`;$('calculatorInputs').innerHTML=html;const input=$('calculatorInputs').querySelector('input');
  input.value=state.calcInputs[state.calcMode];
@@ -410,6 +531,15 @@ async function chooseLocation(loc){
   renderDepartureComparison();
   $('currentScoreScale').hidden=true;
   $('daylightTimeline').hidden=true;
+  $('daylightLegend').hidden=true;
+  $('daylightRunNote').hidden=true;
+  $('daylightClock').textContent='';
+  $('sunStatus').textContent='';
+  $('environmentNotice').hidden=true;
+  $('heroReferenceTime').textContent='';
+  $('todayBestLabel').textContent='오늘 최고 구간';
+  $('todayBestScore').textContent='';
+  state.selectedRunStart=null;
   $('todayBestTime').textContent='조회 중';$('updatedAt').textContent='조회 중';
   state.selectedLocation=null;setStored('location',state.location);$('locationConfirm').hidden=true;$('locationConfirm').disabled=false;$('locationDialog').close();loadData(true);
 }
@@ -445,4 +575,4 @@ addEventListener('offline',()=>loadData(true));
 calculatorTemplate();loadData();
 setInterval(()=>{if(document.visibilityState==='visible'&&!state.loading&&Date.now()-(state.lastAttempt||0)>=10*60000)loadData();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.data)render();if(!state.loading&&Date.now()-(state.lastAttempt||0)>60000)loadData();}});
-if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=58',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});
+if('serviceWorker'in navigator)addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js?v=59',{updateViaCache:'none'});registration.update();let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}catch{}});

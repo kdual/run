@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="./styles.css?v=39">
   <link rel="stylesheet" href="./responsive.css?v=20">
   <link rel="stylesheet" href="./swiss-journal.css?v=5">
-  <link rel="stylesheet" href="./reference-layout.css?v=9">
+  <link rel="stylesheet" href="./reference-layout.css?v=10">
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0607ee2c25af1fbf189143c134f57c69&libraries=services"></script>
 </head>
 <body>
@@ -57,7 +57,7 @@
     <section id="top" class="hero card" aria-labelledby="runNowTitle">
       <div class="section-heading hero-heading">
         <div class="hero-title"><p class="section-index">01 / RUN NOW</p><h1 id="runNowTitle">지금 뛰어도 될까?</h1></div>
-        <small id="updatedAt" class="hero-updated">업데이트 대기</small>
+        <small class="hero-updated"><span id="heroReferenceTime"></span><span id="updatedAt">업데이트 대기</span></small>
       </div>
       <div class="hero-main">
         <div class="score-lockup" role="group" aria-label="현재 러닝 점수">
@@ -69,14 +69,17 @@
         </div>
         <div id="currentScoreScale" class="score-scale" hidden>
           <meter id="currentScoreMeter" min="0" max="100" value="0" aria-label="현재 러닝 점수"></meter>
-          <div aria-hidden="true"><span>0</span><span>100</span></div>
+          <div aria-hidden="true"><span>0</span><span>60</span><span>75</span><span>90</span><span>100</span></div>
         </div>
         <p id="runNowMessage" class="hero-message">현재 러닝 환경을 분석하고 있습니다.</p>
-        <div class="today-best-time"><span>가장 좋은 시간</span><strong id="todayBestTime">--:--</strong></div>
-        <p id="scoreDataStatus" class="fine-print" role="status">점수 자료 확인 중</p>
-        <p class="fine-print">날씨를 바탕으로 계산한 비교용 점수입니다.</p>
+        <div class="today-best-time"><span id="todayBestLabel">오늘 최고 구간</span><strong id="todayBestTime">--:--</strong><span id="todayBestScore"></span></div>
+        <section id="environmentNotice" class="environment-notice" aria-labelledby="environmentTitle" hidden>
+          <h2 id="environmentTitle">환경 주의사항</h2>
+          <ul id="alerts" class="environment-alerts"></ul>
+        </section>
         <details class="score-method">
-          <summary>점수 산정 기준</summary>
+          <summary>점수 산정 기준 및 안내</summary>
+          <p id="scoreDataStatus" class="fine-print" role="status">점수 자료 확인 중</p>
           <p>기상과 대기질로 계산하는 환경 비교용 점수입니다. 개인의 실제 체감이나 안전 여부를 판단하는 지표는 아닙니다.</p>
           <p>체감온도에는 기온·습도·바람이 반영됩니다. 햇빛 열부담은 태양 위치와 구름량을 바탕으로 추정합니다. 미세먼지와 통합대기지수는 가장 큰 감점 한 가지만 적용합니다.</p>
         </details>
@@ -98,7 +101,7 @@
         <ol id="bestTimes" class="best-list" aria-live="polite">
           <li class="skeleton-row"></li><li class="skeleton-row"></li><li class="skeleton-row"></li>
         </ol>
-        <p class="best-times-note">기상청 시간별 예보를 바탕으로 추천하며, 선택한 러닝 시간에 따라 순위가 바뀝니다.</p>
+        <p class="best-times-note">추천 구간을 선택하면 상단 비교표에 반영됩니다.</p>
       </article>
 
       <article id="currentWeatherCard" class="card current-card" aria-labelledby="currentWeatherTitle">
@@ -110,9 +113,12 @@
 
       <article class="card sun-card" aria-labelledby="sunCardTitle">
         <div class="section-heading"><div><p class="section-index">04 / DAYLIGHT</p><h2 id="sunCardTitle">일출 · 일몰과 박명</h2></div><span id="daylightBadge" class="reference-badge">확인 중</span></div>
-        <p id="sunStatus" class="muted"></p>
-        <div id="daylightTimeline" class="daylight-timeline" aria-hidden="true" hidden>
-          <span class="daylight-twilight"></span><span class="daylight-sun"></span><span class="daylight-now"></span>
+        <div class="daylight-body">
+          <div class="daylight-status"><p id="sunStatus"></p><span id="daylightClock"></span></div>
+          <div id="daylightTimeline" class="daylight-timeline" aria-hidden="true" hidden>
+            <span class="daylight-twilight"></span><span class="daylight-sun"></span><span class="daylight-now"></span>
+          </div>
+          <div id="daylightLegend" class="daylight-legend" aria-hidden="true" hidden></div>
         </div>
         <dl class="weather-summary-grid daylight-grid" aria-label="오늘의 일출, 일몰, 박명 시각">
           <div class="weather-summary-cell"><dt>일출</dt><dd><strong id="sunrise" class="weather-summary-value">--:--</strong></dd></div>
@@ -120,10 +126,11 @@
           <div class="weather-summary-cell"><dt>첫빛 (천문)</dt><dd><strong id="astronomicalDawn" class="weather-summary-value">--:--</strong></dd></div>
           <div class="weather-summary-cell"><dt>완전한 어둠</dt><dd><strong id="astronomicalDusk" class="weather-summary-value">--:--</strong></dd></div>
         </dl>
-        <details class="weather-details"><summary>항해박명 시각</summary>
+        <p id="daylightRunNote" class="daylight-run-note" hidden></p>
+        <details class="weather-details daylight-details"><summary>박명 상세</summary>
           <dl class="weather-summary-grid"><div class="weather-summary-cell"><dt>시작</dt><dd id="nauticalDawn">--:--</dd></div><div class="weather-summary-cell"><dt>종료</dt><dd id="nauticalDusk">--:--</dd></div></dl>
+          <p class="sun-note">박명은 태양 위치로 계산한 예상 시각입니다. 구름·지형·도심 조명에 따라 실제 밝기는 다릅니다.</p>
         </details>
-        <p class="sun-note">박명은 태양 위치로 계산한 예상 시각입니다. 구름·지형·도심 조명에 따라 실제 밝기는 다릅니다.</p>
       </article>
     </section>
 
@@ -157,28 +164,30 @@
 
     <div class="forecast-and-coach">
     <section class="card wide-section forecast-card" aria-labelledby="weeklyTitle">
-      <div class="section-heading weekly-heading"><div><p id="weeklyIndex" class="section-index">07 / FORECAST</p><h2 id="weeklyTitle">단기 러닝 날씨</h2></div><p id="comparisonMessage" class="weekly-diff">오늘과 내일을 비교하는 중입니다.</p></div>
+      <div class="section-heading weekly-heading"><div><p id="weeklyIndex" class="section-index">07 / FORECAST</p><h2 id="weeklyTitle">단기 러닝 날씨</h2></div><small>기상청 단기예보 기준</small></div>
       <div id="weeklyCards" class="weekly-grid"></div>
-      <div id="selectedDayDetail" class="selected-day-detail"></div>
+      <p id="forecastSummary" class="forecast-summary" aria-live="polite"></p>
+      <details id="forecastDetails" class="weather-details forecast-details" hidden>
+        <summary>선택한 날짜의 예보 상세</summary>
+        <div id="selectedDayDetail" class="selected-day-detail"></div>
+      </details>
     </section>
 
     <section class="card coach-section" aria-labelledby="coachTitle">
-      <div class="section-heading"><div><p class="section-index">08 / COACH</p><h2 id="coachTitle">러닝 코치</h2></div><span class="reference-badge">RULE-BASED</span></div>
-      <div id="coachInsights" class="coach-insights" aria-label="현재 환경을 바탕으로 한 러닝 계획"></div>
-      <p id="coachMessage" class="coach-copy">현재 조건을 분석하고 있습니다.</p>
-      <div id="alerts" class="alert-list"></div>
+      <div class="section-heading"><div><p class="section-index">08 / COACH</p><h2 id="coachTitle">러닝 코치 브리핑</h2></div><span id="coachBadge" class="reference-badge" hidden></span></div>
+      <ol id="coachInsights" class="coach-insights" aria-label="현재 환경을 바탕으로 한 러닝 계획"><li>현재 조건을 분석하고 있습니다.</li></ol>
     </section>
     </div>
 
     <section class="card wide-section training-options" aria-labelledby="trainingOptionsTitle">
-      <div class="section-heading"><div><p class="section-index">09–10 / WORKOUT &amp; GEAR</p><h2 id="trainingOptionsTitle">추천 훈련 · 복장</h2></div></div>
+      <div class="section-heading"><div><p class="section-index">09–10 / WORKOUT &amp; GEAR</p><h2 id="trainingOptionsTitle">훈련 종류별 적합도 · 추천 복장</h2></div><small id="workoutWeather"></small></div>
       <div class="workout-and-gear">
         <div>
-          <h3>훈련 종류별 적합도</h3>
+          <h3>훈련 강도별 점수</h3>
           <div id="workoutScores" class="workout-list"></div>
         </div>
         <div>
-          <h3>복장 · 환경 안내</h3>
+          <h3>오늘의 추천 복장 (참고용)</h3>
           <div id="gearAdvice" class="gear-grid"></div>
           <p class="fine-print">현재 날씨를 바탕으로 한 간이 추천입니다. 출발 시간의 예보와 개인 체감·운동 강도도 확인하세요.</p>
         </div>
@@ -201,6 +210,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js?v=56"></script>
+  <script type="module" src="./app.js?v=57"></script>
 </body>
 </html>
